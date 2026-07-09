@@ -6,6 +6,8 @@ export interface ParserArtifact {
   artifactType: string;
   dataJson: Record<string, unknown>;
   sourceFilePath: string;
+  vendor?: string;
+  product?: string;
 }
 
 export interface ParserInput {

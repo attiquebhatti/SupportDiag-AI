@@ -9,10 +9,12 @@ export function AnalysisNav({ uploadId }: { uploadId: string }) {
   const tabs = [
     { href: base, label: "Overview" },
     { href: `${base}/findings`, label: "Findings" },
+    { href: `${base}/evidence`, label: "Evidence" },
     { href: `${base}/files`, label: "File Explorer" },
+    { href: `${base}/timeline`, label: "Timeline" },
     { href: `${base}/search`, label: "Search" },
-    { href: `${base}/ai`, label: "AI Assistant" },
-    { href: `${base}/report`, label: "Report" },
+    { href: `${base}/ai`, label: "AI Investigator" },
+    { href: `${base}/report`, label: "Reports" },
   ];
   return (
     <div className="flex gap-1 overflow-x-auto border-b">

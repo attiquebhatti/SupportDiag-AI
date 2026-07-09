@@ -19,9 +19,14 @@ export async function GET(
   return json({ finding });
 }
 
-const patchSchema = z.object({
-  status: z.enum(["OPEN", "VALID", "FALSE_POSITIVE", "NEEDS_REVIEW"]),
-});
+const patchSchema = z
+  .object({
+    status: z.enum(["OPEN", "VALID", "FALSE_POSITIVE", "NEEDS_REVIEW"]).optional(),
+    analystNote: z.string().max(4000).nullable().optional(),
+  })
+  .refine((d) => d.status !== undefined || d.analystNote !== undefined, {
+    message: "Nothing to update",
+  });
 
 // PATCH /api/uploads/[id]/findings/[findingId] — triage status
 export async function PATCH(
@@ -35,14 +40,17 @@ export async function PATCH(
 
   const body = await req.json().catch(() => null);
   const parsed = patchSchema.safeParse(body);
-  if (!parsed.success) return apiError("Invalid status", 422);
+  if (!parsed.success) return apiError("Invalid update", 422);
 
   const existing = await prisma.finding.findFirst({ where: { id: findingId, uploadId: id } });
   if (!existing) return apiError("Finding not found", 404);
 
   const finding = await prisma.finding.update({
     where: { id: findingId },
-    data: { status: parsed.data.status },
+    data: {
+      ...(parsed.data.status !== undefined ? { status: parsed.data.status } : {}),
+      ...(parsed.data.analystNote !== undefined ? { analystNote: parsed.data.analystNote } : {}),
+    },
   });
   return json({ finding });
 }

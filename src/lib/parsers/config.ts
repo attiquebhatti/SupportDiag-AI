@@ -39,7 +39,9 @@ export const runningConfigParser: BaseParser = {
         !/<profile-setting>\s*<\/profile-setting>/i.test(block);
       const action = block.match(/<action>([^<]*)<\/action>/i)?.[1] ?? null;
       const disabled = /<disabled>yes<\/disabled>/i.test(block);
-      return { name, logStart, logEnd, hasProfile, action, disabled };
+      const sourceAny = /<source>\s*<member>any<\/member>\s*<\/source>/i.test(block);
+      const destAny = /<destination>\s*<member>any<\/member>\s*<\/destination>/i.test(block);
+      return { name, logStart, logEnd, hasProfile, action, disabled, sourceAny, destAny };
     });
     artifacts.push({
       parserName: this.name,

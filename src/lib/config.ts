@@ -56,6 +56,8 @@ export const config = {
   },
 
   supportedExtensions: [".tgz", ".tar.gz", ".tar", ".zip"] as const,
+  // Single (non-archive) diagnostic files that are analyzed directly.
+  supportedSingleFileExtensions: [".log", ".txt", ".json", ".xml"] as const,
 };
 
 export type AppConfig = typeof config;

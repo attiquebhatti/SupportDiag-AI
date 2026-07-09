@@ -3,7 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { requireUser, requireWriter, apiError, json } from "@/lib/api";
 import { config } from "@/lib/config";
 import { getStorage, buildArchiveKey } from "@/lib/storage";
-import { detectArchiveType } from "@/lib/extraction";
+import { detectArchiveType, isSingleDiagnosticFile } from "@/lib/extraction";
 
 export const runtime = "nodejs";
 export const maxDuration = 60;
@@ -39,14 +39,21 @@ export async function POST(request: Request) {
   const file = form?.get("file");
   if (!(file instanceof File)) return apiError("No file provided (field 'file')", 400);
 
-  // Validate extension
-  const type = detectArchiveType(file.name);
-  if (!type) {
+  // Optional vendor/product hints from the upload wizard.
+  const selectedVendor = (form?.get("selectedVendor") as string) || null;
+  const selectedProduct = (form?.get("selectedProduct") as string) || null;
+  const redactByDefault = (form?.get("redact") as string) !== "false";
+
+  // Validate extension (archive or single diagnostic file)
+  const archiveType = detectArchiveType(file.name);
+  const single = !archiveType && isSingleDiagnosticFile(file.name);
+  if (!archiveType && !single) {
     return apiError(
-      `Unsupported file type. Allowed: ${config.supportedExtensions.join(", ")}`,
+      `Unsupported file type. Allowed: ${[...config.supportedExtensions, ...config.supportedSingleFileExtensions].join(", ")}`,
       415
     );
   }
+  const type = archiveType ?? file.name.slice(file.name.lastIndexOf(".") + 1).toLowerCase();
 
   // Validate size (pre-read guard using File.size)
   if (file.size > config.limits.maxUploadBytes) {
@@ -68,6 +75,9 @@ export async function POST(request: Request) {
       archiveStoragePath: "", // set after storage upload
       status: "UPLOADED",
       supportFileType: type,
+      selectedVendor: selectedVendor && selectedVendor !== "auto" ? selectedVendor : null,
+      selectedProduct: selectedProduct && selectedProduct !== "auto" ? selectedProduct : null,
+      redactByDefault,
     },
   });
 

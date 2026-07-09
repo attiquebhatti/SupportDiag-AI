@@ -1,12 +1,14 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { prisma } from "@/lib/prisma";
+import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { HealthRing } from "@/components/health-ring";
 import { SeverityBadge } from "@/components/severity-badge";
+import { VendorBadge, ProductBadge, ConfidenceBadge, UploadStatusBadge } from "@/components/badges";
 import { computeHealthScore, healthBand, countBySeverity } from "@/lib/health";
 import { redactSerial } from "@/lib/redaction";
-import { Sparkles } from "lucide-react";
+import { Sparkles, Bot, FileDown } from "lucide-react";
 
 export const dynamic = "force-dynamic";
 
@@ -41,7 +43,11 @@ export default async function OverviewPage({ params }: { params: Promise<{ id: s
   const score = upload.healthScore ?? computeHealthScore(sevs);
   const band = healthBand(score);
   const counts = countBySeverity(sevs);
-  const aiSummary = (aiArtifact?.dataJson as { summary?: string } | null)?.summary;
+  const aiData = aiArtifact?.dataJson as { summary?: string; detection?: { level?: string } } | null;
+  const aiSummary = aiData?.summary;
+  const vendor = upload.detectedVendor ?? upload.selectedVendor ?? null;
+  const product = upload.detectedProduct ?? upload.selectedProduct ?? null;
+  const confidenceLevel = aiData?.detection?.level ?? (upload.detectionConfidence != null ? (upload.detectionConfidence >= 60 ? "high" : upload.detectionConfidence >= 30 ? "medium" : "low") : "low");
 
   const topFindings = [...upload.findings]
     .sort((a, b) => {
@@ -51,7 +57,22 @@ export default async function OverviewPage({ params }: { params: Promise<{ id: s
     .slice(0, 5);
 
   return (
-    <div className="grid gap-6 lg:grid-cols-3">
+    <div className="space-y-6">
+      {/* Case header */}
+      <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border stat-gradient p-4">
+        <div className="flex flex-wrap items-center gap-2">
+          <VendorBadge vendor={vendor} />
+          <ProductBadge product={product} />
+          <UploadStatusBadge status={upload.status} />
+          <ConfidenceBadge level={confidenceLevel} />
+        </div>
+        <div className="flex items-center gap-2">
+          <Button asChild variant="outline" size="sm"><Link href={`/uploads/${id}/ai`}><Bot className="h-4 w-4" /> Ask AI</Link></Button>
+          <Button asChild size="sm"><Link href={`/uploads/${id}/report`}><FileDown className="h-4 w-4" /> Export report</Link></Button>
+        </div>
+      </div>
+
+      <div className="grid gap-6 lg:grid-cols-3">
       {/* Health + counts */}
       <Card className="lg:col-span-1">
         <CardHeader>
@@ -137,6 +158,7 @@ export default async function OverviewPage({ params }: { params: Promise<{ id: s
           ))}
         </CardContent>
       </Card>
+      </div>
     </div>
   );
 }

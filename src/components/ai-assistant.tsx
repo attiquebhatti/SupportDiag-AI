@@ -16,14 +16,14 @@ interface Turn {
   evidence: Evidence[];
 }
 
-const SUGGESTIONS = [
-  "Is HA healthy and in sync?",
-  "Are there any interfaces down?",
-  "What is the PAN-OS version and are licenses expired?",
-  "Summarize the most critical issues.",
+const DEFAULT_SUGGESTIONS = [
+  "What are the top issues in this support file?",
+  "Summarize the most critical findings.",
+  "What should I troubleshoot first?",
 ];
 
-export function AIAssistant({ uploadId }: { uploadId: string }) {
+export function AIAssistant({ uploadId, suggestions }: { uploadId: string; suggestions?: string[] }) {
+  const SUGGESTIONS = suggestions && suggestions.length ? suggestions : DEFAULT_SUGGESTIONS;
   const [turns, setTurns] = useState<Turn[]>([]);
   const [question, setQuestion] = useState("");
   const [busy, setBusy] = useState(false);

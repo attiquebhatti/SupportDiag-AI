@@ -28,6 +28,15 @@ interface ReportFinding {
   evidenceJson: unknown;
 }
 
+export type ReportTemplate = "executive" | "technical" | "customer" | "internal";
+
+export const REPORT_TEMPLATES: Record<ReportTemplate, { label: string; description: string }> = {
+  executive: { label: "Executive Summary", description: "High-level health, top risks, and priorities. No raw evidence." },
+  technical: { label: "Technical Troubleshooting Report", description: "Full findings with evidence and remediation steps." },
+  customer: { label: "Customer-Facing Report", description: "Redacted, polished report suitable for sharing externally." },
+  internal: { label: "Internal Engineering Notes", description: "Everything, including analyst notes and low-severity items." },
+};
+
 export interface ReportInput {
   device: ReportDevice | null;
   findings: ReportFinding[];
@@ -36,6 +45,58 @@ export interface ReportInput {
   generatedAt: Date;
   redaction: RedactionOptions;
   redactSerials: boolean;
+  template?: ReportTemplate;
+  includeAiSummary?: boolean;
+  includeEvidence?: boolean;
+  caseMeta?: { filename?: string; vendor?: string | null; product?: string | null };
+  analystNotes?: Array<{ finding: string; note: string }>;
+}
+
+/** Apply template policy: which findings and sections are included. */
+function applyTemplate(input: ReportInput): {
+  findings: ReportFinding[];
+  includeEvidence: boolean;
+  includeAi: boolean;
+  includeNotes: boolean;
+  titleSuffix: string;
+} {
+  const t = input.template ?? "technical";
+  const includeAi = input.includeAiSummary !== false;
+  switch (t) {
+    case "executive":
+      return {
+        findings: input.findings.filter((f) => f.severity === "CRITICAL" || f.severity === "HIGH"),
+        includeEvidence: false,
+        includeAi,
+        includeNotes: false,
+        titleSuffix: "Executive Summary",
+      };
+    case "customer":
+      return {
+        findings: input.findings.filter((f) => f.severity !== "INFORMATIONAL"),
+        includeEvidence: input.includeEvidence !== false,
+        includeAi,
+        includeNotes: false,
+        titleSuffix: "Diagnostic Report",
+      };
+    case "internal":
+      return {
+        findings: input.findings,
+        includeEvidence: true,
+        includeAi,
+        includeNotes: true,
+        titleSuffix: "Internal Engineering Notes",
+      };
+    case "technical":
+    default:
+      return {
+        findings: input.findings,
+        includeEvidence: input.includeEvidence !== false,
+        includeAi,
+        includeNotes: false,
+        titleSuffix: "Technical Troubleshooting Report",
+      };
+  }
 }
 
 const SEV_ORDER: PrismaSeverity[] = ["CRITICAL", "HIGH", "MEDIUM", "LOW", "INFORMATIONAL"];
@@ -58,13 +119,19 @@ function evidenceList(ev: unknown, opts: RedactionOptions): Array<{ filePath: st
 }
 
 export function buildMarkdownReport(input: ReportInput): string {
-  const { device, findings, healthScore, summary, redaction, redactSerials } = input;
+  const { device, healthScore, summary, redaction, redactSerials } = input;
+  const policy = applyTemplate(input);
+  const findings = policy.findings;
   const band = healthBand(healthScore);
-  const counts = countBySeverity(findings.map((f) => ({ severity: sevLabel(f.severity) as never })));
+  const counts = countBySeverity(input.findings.map((f) => ({ severity: sevLabel(f.severity) as never })));
   const lines: string[] = [];
 
-  lines.push(`# FirewallLens AI — Troubleshooting Report`);
+  lines.push(`# FirewallLens AI — ${policy.titleSuffix}`);
   lines.push(`_Generated ${input.generatedAt.toISOString()}_`);
+  if (input.caseMeta?.filename) {
+    lines.push("");
+    lines.push(`**Case:** ${input.caseMeta.filename}${input.caseMeta.vendor ? ` · ${input.caseMeta.vendor}` : ""}${input.caseMeta.product ? ` / ${input.caseMeta.product}` : ""}`);
+  }
   lines.push("");
   lines.push(`> ${DISCLAIMER}`);
   lines.push("");
@@ -92,11 +159,14 @@ export function buildMarkdownReport(input: ReportInput): string {
   lines.push(`| ${counts.Critical} | ${counts.High} | ${counts.Medium} | ${counts.Low} | ${counts.Informational} |`);
   lines.push("");
 
-  lines.push(`## Executive Summary`);
-  lines.push(redactText(summary, redaction));
-  lines.push("");
+  if (policy.includeAi) {
+    lines.push(`## Executive Summary`);
+    lines.push(redactText(summary, redaction));
+    lines.push("");
+  }
 
   lines.push(`## Findings`);
+  if (findings.length === 0) lines.push("_No findings in scope for this report template._");
   for (const sev of SEV_ORDER) {
     const group = findings.filter((f) => f.severity === sev);
     if (group.length === 0) continue;
@@ -105,14 +175,22 @@ export function buildMarkdownReport(input: ReportInput): string {
       lines.push(`#### ${f.title}  \n\`${f.ruleId}\` · ${f.category} · Confidence ${f.confidence}%`);
       lines.push(`**Description:** ${redactText(f.description, redaction)}`);
       lines.push(`**Impact:** ${redactText(f.impact, redaction)}`);
-      const ev = evidenceList(f.evidenceJson, redaction);
-      if (ev.length) {
-        lines.push(`**Evidence:**`);
-        for (const e of ev) lines.push(`- \`${e.filePath}\`: ${e.snippet.replace(/\n/g, " ")}`);
+      if (policy.includeEvidence) {
+        const ev = evidenceList(f.evidenceJson, redaction);
+        if (ev.length) {
+          lines.push(`**Evidence:**`);
+          for (const e of ev) lines.push(`- \`${e.filePath}\`: ${e.snippet.replace(/\n/g, " ")}`);
+        }
       }
       lines.push(`**Recommendation:** ${redactText(f.recommendation, redaction)}`);
       lines.push("");
     }
+  }
+
+  if (policy.includeNotes && input.analystNotes?.length) {
+    lines.push(`## Analyst Notes`);
+    for (const n of input.analystNotes) lines.push(`- **${n.finding}:** ${redactText(n.note, redaction)}`);
+    lines.push("");
   }
 
   lines.push(`---`);
@@ -133,18 +211,22 @@ function esc(s: string): string {
 }
 
 export function buildHtmlReport(input: ReportInput): string {
-  const { device, findings, healthScore, summary, redaction, redactSerials } = input;
+  const { device, healthScore, summary, redaction, redactSerials } = input;
+  const policy = applyTemplate(input);
+  const findings = policy.findings;
   const band = healthBand(healthScore);
-  const counts = countBySeverity(findings.map((f) => ({ severity: sevLabel(f.severity) as never })));
+  const counts = countBySeverity(input.findings.map((f) => ({ severity: sevLabel(f.severity) as never })));
 
   const findingsHtml = SEV_ORDER.map((sev) => {
     const group = findings.filter((f) => f.severity === sev);
     if (group.length === 0) return "";
     const items = group
       .map((f) => {
-        const ev = evidenceList(f.evidenceJson, redaction)
-          .map((e) => `<li><code>${esc(e.filePath)}</code>: ${esc(e.snippet)}</li>`)
-          .join("");
+        const ev = policy.includeEvidence
+          ? evidenceList(f.evidenceJson, redaction)
+              .map((e) => `<li><code>${esc(e.filePath)}</code>: ${esc(e.snippet)}</li>`)
+              .join("")
+          : "";
         return `<div class="finding">
           <h4><span class="pill" style="background:${SEV_COLORS[f.severity]}">${sevLabel(f.severity)}</span> ${esc(f.title)}</h4>
           <p class="meta"><code>${esc(f.ruleId)}</code> · ${esc(f.category)} · Confidence ${f.confidence}%</p>
@@ -176,7 +258,7 @@ export function buildHtmlReport(input: ReportInput): string {
   dl{display:grid;grid-template-columns:180px 1fr;gap:.25rem .75rem}
 </style></head><body>
   <h1>FirewallLens AI</h1>
-  <p class="sub">Troubleshooting Report · generated ${esc(input.generatedAt.toISOString())}</p>
+  <p class="sub">${esc(policy.titleSuffix)} · generated ${esc(input.generatedAt.toISOString())}${input.caseMeta?.filename ? ` · ${esc(input.caseMeta.filename)}` : ""}${input.caseMeta?.vendor ? ` · ${esc(input.caseMeta.vendor)}${input.caseMeta.product ? " / " + esc(input.caseMeta.product) : ""}` : ""}</p>
   <div class="disclaimer">${esc(DISCLAIMER)}</div>
 
   <h2>Device Summary</h2>
@@ -200,11 +282,16 @@ export function buildHtmlReport(input: ReportInput): string {
   <table><thead><tr><th>Critical</th><th>High</th><th>Medium</th><th>Low</th><th>Info</th></tr></thead>
   <tbody><tr><td>${counts.Critical}</td><td>${counts.High}</td><td>${counts.Medium}</td><td>${counts.Low}</td><td>${counts.Informational}</td></tr></tbody></table>
 
-  <h2>Executive Summary</h2>
-  <p>${esc(redactText(summary, redaction))}</p>
+  ${policy.includeAi ? `<h2>Executive Summary</h2>\n  <p>${esc(redactText(summary, redaction))}</p>` : ""}
 
   <h2>Findings</h2>
-  ${findingsHtml || "<p>No findings.</p>"}
+  ${findingsHtml || "<p>No findings in scope for this report template.</p>"}
+
+  ${
+    policy.includeNotes && input.analystNotes?.length
+      ? `<h2>Analyst Notes</h2><ul>${input.analystNotes.map((n) => `<li><strong>${esc(n.finding)}:</strong> ${esc(redactText(n.note, redaction))}</li>`).join("")}</ul>`
+      : ""
+  }
 
   <hr/>
   <p class="sub">${esc(DISCLAIMER)}</p>

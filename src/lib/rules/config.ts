@@ -7,6 +7,8 @@ interface SecRule {
   hasProfile: boolean;
   action: string | null;
   disabled: boolean;
+  sourceAny?: boolean;
+  destAny?: boolean;
 }
 
 export const configRules: Rule[] = [
@@ -97,6 +99,30 @@ export const configRules: Rule[] = [
           evidence: allowNoProfile.slice(0, 10).map((r) => evidenceFrom(a, `Rule "${r.name}" allows traffic with no security profile`)),
           recommendation: "Attach an appropriate Security Profile Group (AV, AS, Vulnerability, URL, WildFire) to allow rules.",
           confidence: 72,
+        },
+      ];
+    },
+  },
+  {
+    id: "CFG-005-ANY-ANY-ALLOW",
+    category: "Commit & Config",
+    evaluate(ctx): Finding[] {
+      const a = ctx.byType("security-rules")[0];
+      if (!a) return [];
+      const rules = ((a.dataJson.rules as SecRule[]) ?? []).filter((r) => !r.disabled);
+      const anyAny = rules.filter((r) => r.action === "allow" && r.sourceAny && r.destAny);
+      if (anyAny.length === 0) return [];
+      return [
+        {
+          ruleId: "CFG-005-ANY-ANY-ALLOW",
+          severity: "High",
+          category: "Commit & Config",
+          title: "Any-any allow rule detected",
+          description: `${anyAny.length} enabled security rule(s) allow traffic with source AND destination set to "any".`,
+          impact: "Overly permissive any-any allow rules bypass segmentation and dramatically widen the attack surface.",
+          evidence: anyAny.slice(0, 10).map((r) => evidenceFrom(a, `Rule "${r.name}" allows any -> any`)),
+          recommendation: "Tighten source/destination/application on these rules to least-privilege, and ensure logging + security profiles are applied.",
+          confidence: 74,
         },
       ];
     },

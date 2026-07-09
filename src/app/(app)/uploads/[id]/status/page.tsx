@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 
 const STEPS = [
-  "queued", "downloading", "extracting", "indexing", "parsing",
+  "queued", "downloading", "extracting", "indexing", "detecting", "parsing",
   "device-detection", "analyzing", "summarizing", "completed",
 ];
 

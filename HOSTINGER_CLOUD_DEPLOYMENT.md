@@ -85,16 +85,20 @@ Restart the app after saving.
 From an SSH session in the app root (or a one-off deploy step):
 
 ```bash
-npx prisma migrate deploy      # applies committed migrations
-# first time only, if you have no migrations yet:
-# npx prisma migrate dev --name init   (run locally, commit the migration, then deploy)
+npx prisma migrate deploy      # applies committed migrations (0001_init + multivendor)
 ```
 
-Optionally seed demo users:
+Then run the seed — it creates demo users **and** populates the vendor parser and
+diagnostic rule registries used by the Vendor Parsers page:
 
 ```bash
 npm run seed
 ```
+
+> Upgrading an existing deployment? `prisma migrate deploy` applies the `multivendor`
+> migration additively (new columns/tables only — existing uploads and findings are kept).
+> Re-run `npm run seed` afterward to register parsers/rules. Older cases will show
+> "Unknown / Generic" vendor badges until re-processed.
 
 ## 9. Create the Supabase Storage bucket
 

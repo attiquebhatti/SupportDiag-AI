@@ -1,11 +1,14 @@
 import "server-only";
 import { prisma } from "./prisma";
 import { getStorage } from "./storage";
-import { extractArchive, detectArchiveType, type ArchiveType } from "./extraction";
-import { runParsers, deriveDevice } from "./parsers";
-import { runRules } from "./rules/engine";
+import { extractArchive, detectArchiveType, isSingleDiagnosticFile, singleFileResult, type ArchiveType } from "./extraction";
+import { deriveDevice } from "./parsers";
+import { runParsersForProduct } from "./parsers/registry";
+import { runRulesForProduct } from "./rules/registry";
 import { computeHealthScore } from "./health";
 import { generateSummary } from "./ai";
+import { detectVendorProduct } from "./detection";
+import { PRODUCT_MAP, vendorLabel, productLabel } from "./vendors";
 import type { Severity as PrismaSeverity } from "@prisma/client";
 import type { Severity } from "./rules/types";
 
@@ -54,18 +57,28 @@ export async function processUpload(uploadId: string): Promise<void> {
     // 1. Download archive from storage
     const buffer = await getStorage().download(upload.archiveStoragePath);
 
-    // 2. Extract safely
+    // 2. Extract safely (archive) or wrap a single diagnostic file
     await setStep(uploadId, "extracting", 20);
-    const type = (upload.supportFileType as ArchiveType) ?? detectArchiveType(upload.originalFilename);
-    if (!type) throw new Error("Unsupported or undetectable archive type");
-    const extraction = await extractArchive(buffer, type);
+    const archiveType = detectArchiveType(upload.originalFilename) ??
+      (["tgz", "tar.gz", "tar", "zip"].includes(upload.supportFileType ?? "")
+        ? (upload.supportFileType as ArchiveType)
+        : null);
+    let extraction;
+    if (archiveType) {
+      extraction = await extractArchive(buffer, archiveType);
+    } else if (isSingleDiagnosticFile(upload.originalFilename)) {
+      extraction = singleFileResult(upload.originalFilename, buffer);
+    } else {
+      throw new Error("Unsupported or undetectable file type");
+    }
 
     // 3. Persist extracted file metadata + indexed text (idempotent reset first)
-    await setStep(uploadId, "indexing", 40);
+    await setStep(uploadId, "indexing", 35);
     await prisma.$transaction([
       prisma.extractedFile.deleteMany({ where: { uploadId } }),
       prisma.parsedArtifact.deleteMany({ where: { uploadId } }),
       prisma.finding.deleteMany({ where: { uploadId } }),
+      prisma.asset.deleteMany({ where: { uploadId } }),
     ]);
 
     // Insert in batches to stay within statement limits.
@@ -82,16 +95,35 @@ export async function processUpload(uploadId: string): Promise<void> {
       await prisma.extractedFile.createMany({ data: fileRows.slice(i, i + 500) });
     }
 
-    // 4. Run parsers over indexed text files
-    await setStep(uploadId, "parsing", 60);
     const indexed = extraction.entries
       .filter((e) => e.content != null)
       .map((e) => ({ path: e.path, content: e.content as string }));
-    const artifacts = runParsers(indexed);
+
+    // 4. Detect vendor / product (honoring any user selection)
+    await setStep(uploadId, "detecting", 48);
+    const detection = detectVendorProduct({
+      files: indexed,
+      selectedVendor: upload.selectedVendor,
+      selectedProduct: upload.selectedProduct,
+    });
+    await prisma.upload.update({
+      where: { id: uploadId },
+      data: {
+        detectedVendor: detection.vendor,
+        detectedProduct: detection.product,
+        detectionConfidence: detection.confidence,
+      },
+    });
+
+    // 5. Run the parser set for the detected product
+    await setStep(uploadId, "parsing", 62);
+    const artifacts = runParsersForProduct(detection.vendor, detection.product, indexed);
     if (artifacts.length > 0) {
       await prisma.parsedArtifact.createMany({
         data: artifacts.map((a) => ({
           uploadId,
+          vendor: a.vendor ?? detection.vendor ?? undefined,
+          product: a.product ?? detection.product ?? undefined,
           parserName: a.parserName,
           artifactType: a.artifactType,
           dataJson: a.dataJson as object,
@@ -100,19 +132,36 @@ export async function processUpload(uploadId: string): Promise<void> {
       });
     }
 
-    // 5. Derive device
-    await setStep(uploadId, "device-detection", 70);
+    // 6. Derive device (PAN-OS) + normalized Asset
+    await setStep(uploadId, "device-detection", 72);
     const device = deriveDevice(artifacts);
     await prisma.device.deleteMany({ where: { uploadId } });
     await prisma.device.create({ data: { uploadId, ...device } });
 
-    // 6. Run rule engine
-    await setStep(uploadId, "analyzing", 82);
-    const findings = runRules(artifacts);
+    const asset = await prisma.asset.create({
+      data: {
+        uploadId,
+        vendor: detection.vendor,
+        product: detection.product,
+        hostname: device.hostname,
+        serialNumber: device.serialNumber,
+        version: device.panosVersion,
+        model: device.model,
+        role: detection.product ? PRODUCT_MAP[detection.product]?.shortLabel ?? null : null,
+        metadataJson: { ...device, detectionSignals: detection.signals },
+      },
+    });
+
+    // 7. Run the rule set for the detected product
+    await setStep(uploadId, "analyzing", 84);
+    const findings = runRulesForProduct(detection.product, artifacts);
     if (findings.length > 0) {
       await prisma.finding.createMany({
         data: findings.map((f) => ({
           uploadId,
+          assetId: asset.id,
+          vendor: detection.vendor ?? undefined,
+          product: detection.product ?? undefined,
           ruleId: f.ruleId,
           severity: SEVERITY_MAP[f.severity],
           category: f.category,
@@ -126,12 +175,14 @@ export async function processUpload(uploadId: string): Promise<void> {
       });
     }
 
-    // 7. Health score
+    // 8. Health score
     const healthScore = computeHealthScore(findings);
 
-    // 8. AI executive summary (optional; degrades gracefully if disabled)
-    await setStep(uploadId, "summarizing", 92);
-    const deviceLine = `${device.hostname ?? "unknown host"} (${device.model ?? "model?"}, PAN-OS ${device.panosVersion ?? "?"})`;
+    // 9. AI executive summary (optional; degrades gracefully if disabled)
+    await setStep(uploadId, "summarizing", 93);
+    const vLabel = vendorLabel(detection.vendor);
+    const pLabel = productLabel(detection.product);
+    const deviceLine = `${device.hostname ?? "unknown host"} — ${vLabel} ${pLabel}${device.model ? ` (${device.model})` : ""}${device.panosVersion ? `, v${device.panosVersion}` : ""}`;
     const findingLines = findings.slice(0, 15).map((f) => `- [${f.severity}] ${f.title}`);
     const summary = await generateSummary(deviceLine, findingLines, {
       redactPrivateIps: false,
@@ -144,12 +195,22 @@ export async function processUpload(uploadId: string): Promise<void> {
         uploadId,
         parserName: "ai-summary",
         artifactType: "ai-summary",
-        dataJson: { summary, healthScore },
+        dataJson: {
+          summary,
+          healthScore,
+          detection: {
+            vendor: detection.vendor,
+            product: detection.product,
+            confidence: detection.confidence,
+            level: detection.level,
+            signals: detection.signals,
+          },
+        },
         sourceFilePath: null,
       },
     });
 
-    // 9. Complete
+    // 10. Complete
     await prisma.upload.update({
       where: { id: uploadId },
       data: { status: "COMPLETED", healthScore },

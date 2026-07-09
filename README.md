@@ -1,126 +1,123 @@
 # FirewallLens AI
 
-**AI-assisted firewall support file analysis for faster troubleshooting.**
+**AI-assisted security support file analysis for faster troubleshooting.**
 
-FirewallLens AI is an independent, AI-assisted analyzer for Palo Alto Networks PAN-OS
-tech support files. Network security engineers can upload a support bundle, have it safely
-extracted and parsed, review auto-generated health findings, search the raw evidence, ask
-evidence-grounded AI questions, and export a troubleshooting report.
+FirewallLens AI is an independent, multi-vendor cybersecurity diagnostic platform. Upload a
+vendor support bundle — firewall tech support files, Panorama exports, Cortex XDR/XSIAM log
+bundles, diagnostic archives, or raw logs — and get safe extraction, structured parsing,
+evidence-based findings, a health score, an evidence-grounded AI Investigator, and exportable
+troubleshooting reports.
 
 > ⚠️ **Disclaimer:** This is an independent diagnostic assistant. It is **not** an official
-> Palo Alto Networks tool and **does not replace Palo Alto Networks TAC**.
+> tool from Palo Alto Networks, Check Point, Fortinet, or any vendor, and it **does not
+> replace official vendor TAC support**.
 
 ---
 
+## Vendor coverage
+
+| Vendor | Product | Status | Parser maturity |
+|---|---|---|---|
+| Palo Alto Networks | NGFW / PAN-OS | ✅ Supported | High |
+| Palo Alto Networks | Panorama | ✅ Supported | Medium |
+| Palo Alto Networks | Cortex XDR | 🧪 Beta (generic log analysis) | Low |
+| Palo Alto Networks | Cortex XSIAM | 🧪 Beta (generic log analysis) | Low |
+| Check Point | Gateway / Management / Maestro-VSX | 🗓 Planned (Phase 2) | Low |
+| Fortinet | FortiGate / FortiManager / FortiAnalyzer | 🗓 Planned (Phase 2) | Low |
+
+Vendor/product is **auto-detected** from archive structure, filenames, command outputs, and
+version strings — or can be selected explicitly in the upload wizard. Unknown bundles still get
+generic error/timeline analysis with a "Low" parser-confidence label.
+
 ## Features
 
-- 🔐 Email/password auth with JWT sessions and **Admin / Engineer / Viewer** roles
-- ⬆️ Upload `.tgz`, `.tar.gz`, `.tar`, `.zip` support bundles (validated, size-limited)
-- 🧯 **Safe extraction** — path-traversal protection, size/count limits, never executes files
-- 🧩 Modular **parser framework** (system info, config, HA, interfaces, routing, BGP/OSPF,
-  IPSec/IKE, licensing, content versions, Panorama, commits, logs, MP/DP resources)
-- 🚦 **Rule engine** with 25+ diagnostic rules across System Health, HA, Interfaces, Routing,
-  VPN, Panorama, Config, and Licensing
-- 📊 Findings dashboard, health score (0–100 with bands), and device overview
-- 🗂️ File explorer with Monaco viewer + redaction toggle
-- 🔎 Global keyword/regex search with highlighted matches
-- 🤖 Evidence-grounded AI assistant (strict "answer only from evidence" format)
-- 📄 HTML / Markdown report export with redaction on by default
-- 🧹 Database-backed jobs + cron endpoints (no Redis/Celery/daemons) — **Hostinger Cloud friendly**
+- 🎛 **Security operations console UI** — dark-mode-first premium shell: sidebar navigation,
+  workspace selector, global header, role badges, theme toggle
+- 📊 **SOC-style dashboard** — hero stats, fleet health gauge, severity donut, category bars,
+  vendor coverage cards, recommended actions, failed-processing panel with retry
+- 🧙 **4-step upload wizard** ("New Diagnostic Analysis") — vendor → product → file → options
+- 🧯 **Safe extraction** — path-traversal protection, size/count limits, never executes files;
+  accepts `.tgz .tar.gz .tar .zip` archives plus single `.log .txt .json .xml` files
+- 🧩 **Registry-driven multi-vendor architecture** — `VendorParserRegistry` +
+  `DiagnosticRuleRegistry` map each detected product to its parser modules and rule sets
+- 🚦 **60+ diagnostic rules** across PAN-OS (system health, HA, interfaces, routing, VPN,
+  Panorama, commit/config incl. any-any allow, licensing/content), Panorama management,
+  Cortex XDR/XSIAM (agents, brokers, ingestion, parsing/correlation/dataset/XQL), and
+  vendor-neutral log/crash rules
+- 🗂 **Case workspace** — Overview (badges, confidence, health), Findings console, Evidence
+  view, File Explorer (Monaco + redaction toggle), **Timeline**, Search, AI Investigator, Reports
+- 🤖 **AI Investigator** — evidence-grounded Q&A with product-specific suggested questions and a
+  strict Answer / Evidence / Interpretation / Next Steps / Confidence format; never hallucinates,
+  never claims TAC confirmation, degrades gracefully when AI is disabled
+- 📄 **Report templates** — Executive Summary, Technical Troubleshooting, Customer-Facing,
+  Internal Engineering Notes; HTML or Markdown; redaction on by default; analyst notes included
+  in internal reports
+- 🔐 **Redaction engine** — passwords, keys, tokens, certificates, PSKs, emails, serials,
+  public IPs always; private IPs / internal FQDNs optional
+- 🧹 **Hostinger-friendly jobs** — DB-backed job states + protected cron endpoints; no Docker,
+  Redis, Celery, or daemons
 
 ## Tech stack
 
 Next.js 15 (App Router) · React 19 · TypeScript · Tailwind CSS · Radix/shadcn-style UI ·
-TanStack Table · Recharts · Monaco Editor · Prisma · PostgreSQL (Neon/Supabase) ·
+TanStack Table · Recharts · Monaco Editor · next-themes · Prisma · PostgreSQL (Neon/Supabase) ·
 Supabase Storage · OpenAI-compatible API.
 
 ## Quick start (local)
 
 ```bash
-# 1. Install
 npm install
-
-# 2. Configure environment
-cp .env.example .env
-#   set DATABASE_URL / DIRECT_URL (Neon or local Postgres), NEXTAUTH_SECRET,
-#   STORAGE_PROVIDER=local (for quick testing), and optionally OPENAI_API_KEY
-
-# 3. Create the schema
-npx prisma migrate dev --name init      # or: npx prisma db push
-
-# 4. (optional) seed demo users
-npm run seed        # admin@firewalllens.local / ChangeMe123!  (+ engineer, viewer)
-
-# 5. Run
-npm run dev         # http://localhost:3000
+cp .env.example .env        # set DATABASE_URL/DIRECT_URL, NEXTAUTH_SECRET; STORAGE_PROVIDER=local for testing
+npx prisma migrate deploy   # applies committed migrations (0001_init + multivendor)
+npm run seed                # demo users + vendor parser & diagnostic rule registries
+npm run dev                 # http://localhost:3000
 ```
 
-The **first account you register becomes the Admin** and creates the default organization.
+Seed users (password `ChangeMe123!`): `admin@` / `engineer@` / `viewer@firewalllens.local`.
+The first account you register yourself becomes Admin.
 
-## Environment variables
+## Architecture
 
-See [`.env.example`](.env.example). Key ones:
+```
+src/lib/vendors.ts            vendor/product taxonomy, categories, suggested questions
+src/lib/detection.ts          vendor/product auto-detection + confidence scoring
+src/lib/parsers/              PAN-OS parsers, Panorama, Cortex XDR/XSIAM, generic-log
+src/lib/parsers/registry.ts   VendorParserRegistry (product → parser modules)
+src/lib/rules/                rule sets per product family
+src/lib/rules/registry.ts     DiagnosticRuleRegistry (product → rule set)
+src/lib/processing.ts         pipeline: extract → detect → parse → asset → rules → score → AI summary
+src/lib/report.ts             report templates (executive/technical/customer/internal)
+src/app/(app)/                console pages: dashboard, upload wizard, cases, findings,
+                              investigator, parsers, reports, knowledge-base, settings,
+                              and the per-case workspace under /uploads/[id]/*
+```
 
-| Variable | Purpose |
-|---|---|
-| `DATABASE_URL` / `DIRECT_URL` | Pooled + direct Postgres connection strings |
-| `NEXTAUTH_SECRET` | Signs session JWTs (`openssl rand -base64 32`) |
-| `STORAGE_PROVIDER` | `supabase` (prod) or `local` (MVP testing) |
-| `SUPABASE_URL` / `SUPABASE_SERVICE_ROLE_KEY` / `SUPABASE_BUCKET` | Object storage |
-| `OPENAI_API_KEY` / `OPENAI_MODEL` / `ENABLE_AI` | AI assistant (set `ENABLE_AI=false` to disable) |
-| `MAX_UPLOAD_SIZE_MB` / `MAX_EXTRACTED_SIZE_MB` / `MAX_EXTRACTED_FILES` | Limits |
-| `RETENTION_DAYS` | Auto-cleanup window |
-| `CRON_SECRET` | Bearer secret for `/api/cron/*` endpoints |
+**Analysis pipeline** (all inside one request or a cron tick — no workers):
+`upload → validate → store archive → extract safely → index text → detect vendor/product →
+run product parser set → derive Device + normalized Asset → run product rule set → health
+score → AI executive summary → complete`.
 
-## Background processing (no Redis/Celery)
+## Background processing
 
-Uploads create an `AnalysisJob` row with status `PENDING`. Processing runs either:
+- `POST /api/uploads/[id]/process` — immediate in-request processing (upload wizard calls this)
+- `POST|GET /api/cron/process-pending-jobs` — cron-driven queue advance (batch, retries)
+- `POST|GET /api/cron/cleanup-expired-files` — retention cleanup
 
-1. **Immediately** — the upload page calls `POST /api/uploads/[id]/process` (best-effort, in-request), or
-2. **Via cron** — `POST /api/cron/process-pending-jobs` picks up pending/failed jobs in small batches.
-
-Two cron endpoints (protected by `CRON_SECRET`) drive the system:
-
-- `/api/cron/process-pending-jobs` — advances the analysis queue
-- `/api/cron/cleanup-expired-files` — purges archives/content past `RETENTION_DAYS`
-
-Call them with `Authorization: Bearer $CRON_SECRET` or `?key=$CRON_SECRET`.
+Cron endpoints require `Authorization: Bearer $CRON_SECRET` or `?key=$CRON_SECRET`.
 
 ## Security & privacy
 
-- File extension + size validated before storage; extracted size/count capped.
-- Path-traversal entries (`..`, absolute paths) are rejected during extraction.
-- Uploaded files are **never executed**; only text files are indexed.
-- Secrets (passwords, API keys, tokens, private keys, certificates, PSKs, emails, serials,
-  public IPs) are redacted before AI processing and, by default, in reports. Private IPs and
-  internal FQDNs are optional toggles.
-- Users can delete a case to purge its archive + extracted content; a retention cron also cleans up.
+- Extension + size validation; extracted size/count caps; `..`/absolute paths rejected
+- Uploaded files are never executed; only text files are indexed
+- Secrets redacted before AI processing and (by default) in reports and file views
+- Case deletion purges the stored archive and all extracted/derived data
+- Independent tool — findings are heuristic and should be validated by a qualified engineer
 
 ## Deployment
 
-See **[HOSTINGER_CLOUD_DEPLOYMENT.md](HOSTINGER_CLOUD_DEPLOYMENT.md)** for step-by-step
-Hostinger Cloud Startup instructions (subdomain, Node.js app, GitHub, Neon, Supabase, cron, SSL).
-
-Build / start commands:
-
-```bash
-# build
-npm install && npx prisma generate && npm run build
-# start
-npm start
-```
-
-## Project structure
-
-```
-prisma/schema.prisma          Prisma models
-src/lib/                       config, auth, storage, extraction, redaction, ai, health, report, processing
-src/lib/parsers/              modular parser framework (BaseParser implementations)
-src/lib/rules/                diagnostic rule engine + rule groups
-src/app/api/                  route handlers (auth, uploads, processing, analysis, files, ai, reports, cron)
-src/app/(app)/               authenticated pages (dashboard, upload, analysis workspace, settings)
-src/components/               UI primitives + feature components
-```
+See **[HOSTINGER_CLOUD_DEPLOYMENT.md](HOSTINGER_CLOUD_DEPLOYMENT.md)**. Build:
+`npm install && npx prisma generate && npm run build` · Start: `npm start`.
+No Docker, Redis, Celery, or long-running daemons required.
 
 ## License
 

@@ -87,23 +87,33 @@ model Upload {
   fileSize           Int
   archiveStoragePath String
   status             UploadStatus  @default(UPLOADED)
-  supportFileType    String? // tgz | tar.gz | tar | zip
+  supportFileType    String? // tgz | tar.gz | tar | zip | log | txt | json | xml
   redactByDefault    Boolean       @default(true)
   healthScore        Int? // cached score for dashboard aggregates
-  createdAt          DateTime      @default(now())
-  deletedAt          DateTime?
 
-  job           AnalysisJob?
-  device        Device?
+  // Multi-vendor detection
+  selectedVendor      String? // user hint (vendor id) or null/auto
+  selectedProduct     String? // user hint (product id) or null/auto
+  detectedVendor      String? // resolved vendor id
+  detectedProduct     String? // resolved product id
+  detectionConfidence Int? // 0-100
+
+  createdAt DateTime  @default(now())
+  deletedAt DateTime?
+
+  job            AnalysisJob?
+  device         Device?
+  assets         Asset[]
   extractedFiles ExtractedFile[]
-  artifacts     ParsedArtifact[]
-  findings      Finding[]
-  conversations AIConversation[]
-  reports       Report[]
+  artifacts      ParsedArtifact[]
+  findings       Finding[]
+  conversations  AIConversation[]
+  reports        Report[]
 
   @@index([userId])
   @@index([status])
   @@index([createdAt])
+  @@index([detectedVendor])
 }
 
 model AnalysisJob {
@@ -140,6 +150,25 @@ model Device {
   createdAt        DateTime @default(now())
 }
 
+// Normalized multi-vendor asset (device/tenant/environment) derived from a bundle.
+model Asset {
+  id           String    @id @default(cuid())
+  uploadId     String
+  upload       Upload    @relation(fields: [uploadId], references: [id], onDelete: Cascade)
+  vendor       String?
+  product      String?
+  hostname     String?
+  serialNumber String?
+  version      String?
+  model        String?
+  role         String?
+  metadataJson Json?
+  findings     Finding[]
+  createdAt    DateTime  @default(now())
+
+  @@index([uploadId])
+}
+
 model ExtractedFile {
   id        String   @id @default(cuid())
   uploadId  String
@@ -160,6 +189,8 @@ model ParsedArtifact {
   id             String   @id @default(cuid())
   uploadId       String
   upload         Upload   @relation(fields: [uploadId], references: [id], onDelete: Cascade)
+  vendor         String?
+  product        String?
   parserName     String
   artifactType   String
   dataJson       Json
@@ -174,6 +205,10 @@ model Finding {
   id             String        @id @default(cuid())
   uploadId       String
   upload         Upload        @relation(fields: [uploadId], references: [id], onDelete: Cascade)
+  assetId        String?
+  asset          Asset?        @relation(fields: [assetId], references: [id], onDelete: SetNull)
+  vendor         String?
+  product        String?
   ruleId         String
   severity       Severity
   category       String
@@ -184,10 +219,12 @@ model Finding {
   confidence     Int // 0-100
   evidenceJson   Json
   status         FindingStatus @default(OPEN)
+  analystNote    String?
   createdAt      DateTime      @default(now())
 
   @@index([uploadId])
   @@index([uploadId, severity])
+  @@index([vendor])
 }
 
 model AIConversation {
@@ -208,10 +245,42 @@ model Report {
   id         String   @id @default(cuid())
   uploadId   String
   upload     Upload   @relation(fields: [uploadId], references: [id], onDelete: Cascade)
-  reportType String // html | markdown
+  reportType String // executive | technical | customer | internal (+ format)
+  format     String   @default("html") // html | markdown
   content    String
   redacted   Boolean  @default(true)
   createdAt  DateTime @default(now())
 
   @@index([uploadId])
+}
+
+// Registry of vendor/product parser modules (metadata for the Vendor Parsers page).
+model VendorParser {
+  id         String   @id @default(cuid())
+  vendor     String
+  product    String
+  parserName String
+  enabled    Boolean  @default(true)
+  maturity   String   @default("low") // high | medium | low
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@unique([vendor, product, parserName])
+}
+
+// Registry of diagnostic rules (metadata + enable/disable toggles).
+model DiagnosticRule {
+  id        String   @id @default(cuid())
+  vendor    String
+  product   String
+  ruleId    String   @unique
+  category  String
+  severity  String
+  title     String
+  enabled   Boolean  @default(true)
+  maturity  String   @default("medium")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([vendor, product])
 }

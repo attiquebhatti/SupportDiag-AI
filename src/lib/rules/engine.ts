@@ -20,7 +20,7 @@ export const allRules: Rule[] = [
   ...licensingRules,
 ];
 
-function buildContext(artifacts: ParserArtifact[]): RuleContext {
+export function buildContext(artifacts: ParserArtifact[]): RuleContext {
   return {
     artifacts,
     byType: (type) => artifacts.filter((a) => a.artifactType === type),
@@ -29,27 +29,32 @@ function buildContext(artifacts: ParserArtifact[]): RuleContext {
   };
 }
 
-/** Run every rule against the parsed artifacts and collect findings. */
-export function runRules(artifacts: ParserArtifact[]): Finding[] {
+const SEVERITY_ORDER: Record<string, number> = {
+  Critical: 0,
+  High: 1,
+  Medium: 2,
+  Low: 3,
+  Informational: 4,
+};
+
+/** Run a specific set of rules against artifacts, sorted by severity. */
+export function runRuleSet(rules: Rule[], artifacts: ParserArtifact[]): Finding[] {
   const ctx = buildContext(artifacts);
   const findings: Finding[] = [];
-  for (const rule of allRules) {
+  for (const rule of rules) {
     try {
       findings.push(...rule.evaluate(ctx));
     } catch {
       // Rule failures are isolated so one bad rule cannot fail the analysis.
     }
   }
-  // Sort by severity (most severe first).
-  const order: Record<string, number> = {
-    Critical: 0,
-    High: 1,
-    Medium: 2,
-    Low: 3,
-    Informational: 4,
-  };
-  findings.sort((a, b) => order[a.severity] - order[b.severity]);
+  findings.sort((a, b) => SEVERITY_ORDER[a.severity] - SEVERITY_ORDER[b.severity]);
   return findings;
+}
+
+/** Run the full PAN-OS rule set (backward-compatible default). */
+export function runRules(artifacts: ParserArtifact[]): Finding[] {
+  return runRuleSet(allRules, artifacts);
 }
 
 export * from "./types";

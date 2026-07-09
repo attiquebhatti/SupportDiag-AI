@@ -42,6 +42,35 @@ export function detectArchiveType(filename: string): ArchiveType | null {
   return null;
 }
 
+const SINGLE_FILE_EXT = [".log", ".txt", ".json", ".xml"];
+
+export function isSingleDiagnosticFile(filename: string): boolean {
+  const lower = filename.toLowerCase();
+  return SINGLE_FILE_EXT.some((e) => lower.endsWith(e));
+}
+
+/** Wrap a single (non-archive) diagnostic file as a one-entry extraction result. */
+export function singleFileResult(filename: string, buffer: Buffer): ExtractionResult {
+  const safe = safeEntryPath(filename) ?? "uploaded-file";
+  const isText = true;
+  const indexable = buffer.length <= config.limits.maxIndexedFileBytes;
+  return {
+    entries: [
+      {
+        path: safe,
+        size: buffer.length,
+        hash: hashBuffer(buffer),
+        isText,
+        content: indexable ? buffer.toString("utf8") : null,
+      },
+    ],
+    totalBytes: buffer.length,
+    fileCount: 1,
+    truncated: !indexable,
+    warnings: indexable ? [] : ["File too large to index fully."],
+  };
+}
+
 /**
  * Normalise an archive entry path and reject anything that attempts path
  * traversal or absolute escape. Returns null for unsafe / non-file entries.

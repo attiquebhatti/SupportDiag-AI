@@ -15,7 +15,8 @@ export async function GET(req: Request, { params }: { params: Promise<{ reportId
 
   const url = new URL(req.url);
   const download = url.searchParams.get("download") === "1";
-  const isHtml = report.reportType === "html";
+  // `format` is authoritative; legacy rows stored the format in reportType.
+  const isHtml = report.format ? report.format === "html" : report.reportType !== "markdown";
   const ext = isHtml ? "html" : "md";
   const contentType = isHtml ? "text/html; charset=utf-8" : "text/markdown; charset=utf-8";
 

@@ -7,10 +7,14 @@ import { computeHealthScore } from "@/lib/health";
 export const runtime = "nodejs";
 
 const schema = z.object({
-  reportType: z.enum(["html", "markdown"]).default("html"),
+  // Template ("reportType" keeps backward compat: html/markdown map to technical)
+  reportType: z.enum(["executive", "technical", "customer", "internal", "html", "markdown"]).default("technical"),
+  format: z.enum(["html", "markdown"]).default("html"),
   redactSerials: z.boolean().default(true),
   redactPrivateIps: z.boolean().default(false),
   redactInternalFqdns: z.boolean().default(false),
+  includeAiSummary: z.boolean().default(true),
+  includeEvidence: z.boolean().default(true),
 });
 
 // GET /api/uploads/[id]/reports — list generated reports
@@ -20,7 +24,7 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
   if ("response" in access) return access.response;
   const reports = await prisma.report.findMany({
     where: { uploadId: id },
-    select: { id: true, reportType: true, redacted: true, createdAt: true },
+    select: { id: true, reportType: true, format: true, redacted: true, createdAt: true },
     orderBy: { createdAt: "desc" },
   });
   return json({ reports });
@@ -37,6 +41,11 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
   if (!parsed.success) return apiError("Invalid report options", 422);
   const opts = parsed.data;
 
+  // Back-compat: old clients sent reportType html|markdown (meaning format).
+  const legacyFormat = opts.reportType === "html" || opts.reportType === "markdown";
+  const template = (legacyFormat ? "technical" : opts.reportType) as NonNullable<ReportInput["template"]>;
+  const format = legacyFormat ? (opts.reportType as "html" | "markdown") : opts.format;
+
   const [device, findings, aiArtifact] = await Promise.all([
     prisma.device.findUnique({ where: { uploadId: id } }),
     prisma.finding.findMany({ where: { uploadId: id }, orderBy: { severity: "asc" } }),
@@ -46,6 +55,10 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
   const score =
     access.upload.healthScore ??
     computeHealthScore(findings.map((f) => ({ severity: (f.severity.charAt(0) + f.severity.slice(1).toLowerCase()) as never })));
+
+  const analystNotes = findings
+    .filter((f) => f.analystNote)
+    .map((f) => ({ finding: f.title, note: f.analystNote as string }));
 
   const input: ReportInput = {
     device,
@@ -58,18 +71,28 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
       redactInternalFqdns: opts.redactInternalFqdns,
     },
     redactSerials: opts.redactSerials,
+    template,
+    includeAiSummary: opts.includeAiSummary,
+    includeEvidence: opts.includeEvidence,
+    caseMeta: {
+      filename: access.upload.originalFilename,
+      vendor: access.upload.detectedVendor ?? access.upload.selectedVendor,
+      product: access.upload.detectedProduct ?? access.upload.selectedProduct,
+    },
+    analystNotes,
   };
 
-  const content = opts.reportType === "markdown" ? buildMarkdownReport(input) : buildHtmlReport(input);
+  const content = format === "markdown" ? buildMarkdownReport(input) : buildHtmlReport(input);
 
   const report = await prisma.report.create({
     data: {
       uploadId: id,
-      reportType: opts.reportType,
+      reportType: template,
+      format,
       content,
       redacted: opts.redactSerials || opts.redactPrivateIps || opts.redactInternalFqdns,
     },
   });
 
-  return json({ report: { id: report.id, reportType: report.reportType }, content }, 201);
+  return json({ report: { id: report.id, reportType: template, format } , content }, 201);
 }

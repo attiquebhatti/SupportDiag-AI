@@ -5,6 +5,8 @@ import { prisma } from "@/lib/prisma";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { SeverityBadge } from "@/components/severity-badge";
 import { FindingStatusControl } from "@/components/finding-status-control";
+import { AnalystNote } from "@/components/analyst-note";
+import { VendorBadge, ProductBadge } from "@/components/badges";
 import { redactText } from "@/lib/redaction";
 
 export const dynamic = "force-dynamic";
@@ -40,9 +42,11 @@ export default async function FindingDetailPage({
           <SeverityBadge severity={finding.severity} />
           <div>
             <h2 className="text-xl font-semibold">{finding.title}</h2>
-            <p className="text-xs text-muted-foreground">
+            <div className="flex flex-wrap items-center gap-1.5 text-xs text-muted-foreground">
               <code>{finding.ruleId}</code> · {finding.category} · Confidence {finding.confidence}%
-            </p>
+              <VendorBadge vendor={finding.vendor} />
+              <ProductBadge product={finding.product} />
+            </div>
           </div>
         </div>
       </div>
@@ -93,6 +97,12 @@ export default async function FindingDetailPage({
                 Current status: <span className="font-medium">{finding.status.replace("_", " ")}</span>
               </p>
               <FindingStatusControl uploadId={id} findingId={finding.id} current={finding.status} />
+            </CardContent>
+          </Card>
+          <Card>
+            <CardHeader><CardTitle className="text-base">Analyst Note</CardTitle></CardHeader>
+            <CardContent>
+              <AnalystNote uploadId={id} findingId={finding.id} initialNote={finding.analystNote} />
             </CardContent>
           </Card>
         </div>
