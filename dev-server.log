@@ -10,76 +10,21 @@
      · serverActions
 
  ✓ Starting...
- ✓ Ready in 5.6s
- ✓ Compiled /middleware in 491ms (195 modules)
- ○ Compiling / ...
- ✓ Compiled / in 7.5s (721 modules)
- ✓ Compiled in 1340ms (239 modules)
- GET / 307 in 9145ms
- ○ Compiling /dashboard ...
- ✓ Compiled /dashboard in 5.3s (2086 modules)
- GET /dashboard 200 in 7244ms
+ ✓ Ready in 4.7s
+ ○ Compiling /middleware ...
+ ✓ Compiled /middleware in 1177ms (195 modules)
  ○ Compiling /login ...
- ✓ Compiled /login in 1357ms (2105 modules)
- GET /login 200 in 2103ms
- GET /login 200 in 147ms
- ○ Compiling /upload ...
- ✓ Compiled /cases in 5.1s (2135 modules)
- GET /upload 200 in 7107ms
- ○ Compiling /findings ...
- GET /cases 200 in 5935ms
- GET /dashboard 200 in 5042ms
- ✓ Compiled /parsers in 8.4s (2154 modules)
- GET /upload 200 in 8123ms
- GET /findings 200 in 10535ms
- GET /cases 200 in 8092ms
- GET /investigator 200 in 10577ms
- GET /parsers 200 in 9326ms
- GET /investigator 200 in 403ms
- GET /findings 200 in 191ms
- GET /upload 200 in 110ms
- GET /dashboard 200 in 392ms
- GET /findings 200 in 300ms
- GET /upload 200 in 97ms
- GET /cases 200 in 133ms
- GET /dashboard 200 in 358ms
- GET /investigator 200 in 147ms
- GET /parsers 200 in 237ms
- GET /cases 200 in 114ms
- GET /dashboard 200 in 265ms
- GET /upload 200 in 104ms
-Request body exceeded 10MB for /api/uploads. Only the first 10MB will be available unless configured. See https://nextjs.org/docs/app/api-reference/config/next-config-js/middlewareClientMaxBodySize for more details.
- ○ Compiling /api/uploads ...
- ✓ Compiled /api/uploads in 3s (2216 modules)
- POST /api/uploads 400 in 3835ms
- ✓ Compiled in 1201ms (931 modules)
- GET /upload 200 in 537ms
- GET /upload 200 in 85ms
-Request body exceeded 10MB for /api/uploads. Only the first 10MB will be available unless configured. See https://nextjs.org/docs/app/api-reference/config/next-config-js/middlewareClientMaxBodySize for more details.
- POST /api/uploads 400 in 164ms
-Request body exceeded 10MB for /api/uploads. Only the first 10MB will be available unless configured. See https://nextjs.org/docs/app/api-reference/config/next-config-js/middlewareClientMaxBodySize for more details.
- POST /api/uploads 400 in 72ms
- ✓ Compiled in 463ms (195 modules)
- ✓ Compiled in 2.1s (2148 modules)
- GET /upload 200 in 483ms
- ✓ Compiled in 3.2s (2148 modules)
- GET /upload 200 in 356ms
+ ✓ Compiled /login in 7.9s (655 modules)
+ ✓ Compiled in 1261ms (260 modules)
+ GET /login 200 in 251ms
  ○ Compiling /api/auth/login ...
- ✓ Compiled /api/auth/login in 2.8s (2176 modules)
- POST /api/auth/login 200 in 3663ms
- GET /upload 200 in 313ms
- ○ Compiling /api/uploads ...
- ✓ Compiled /api/uploads in 601ms (1297 modules)
- POST /api/uploads 201 in 1029ms
- GET /upload 200 in 177ms
+ ✓ Compiled /api/auth/login in 1857ms (771 modules)
+ POST /api/auth/login 200 in 2540ms
+ ✓ Compiled /api/uploads in 415ms (823 modules)
+ POST /api/uploads 201 in 2162ms
  ○ Compiling /api/uploads/[id]/process ...
- ✓ Compiled /api/uploads/[id]/process in 2.9s (2398 modules)
- GET /upload 200 in 204ms
- POST /api/uploads/cmrddy5pn0001s3u8u1zyd426/process 200 in 6021ms
+ ✓ Compiled /api/uploads/[id]/process in 1539ms (995 modules)
+ POST /api/uploads/cmrdejxkl0001s3q42d7bb3dc/process 200 in 5351ms
  ○ Compiling /api/uploads/[id] ...
- ✓ Compiled /api/uploads/[id] in 914ms (2400 modules)
- GET /upload 200 in 181ms
- GET /api/uploads/cmrddy5pn0001s3u8u1zyd426 200 in 2641ms
- POST /api/uploads 201 in 411ms
- POST /api/uploads/cmrde3dip000hs3u8ckoabn8f/process 200 in 1354ms
- GET /api/uploads/cmrde3dip000hs3u8ckoabn8f 200 in 107ms
+ ✓ Compiled /api/uploads/[id] in 614ms (997 modules)
+ GET /api/uploads/cmrdejxkl0001s3q42d7bb3dc 200 in 2333ms
