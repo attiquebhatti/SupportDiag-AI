@@ -197,10 +197,35 @@ export async function extractArchive(
 
   if (type === "zip") {
     const zip = new AdmZip(buffer);
-    for (const entry of zip.getEntries()) {
+    const entries = zip.getEntries();
+    let skippedEncrypted = 0;
+    for (const entry of entries) {
       if (entry.isDirectory) continue;
-      const data = entry.getData();
+      // Encrypted / password-protected entries (common in Cortex XDR bundles)
+      // cannot be read without a password — skip them instead of failing the
+      // whole analysis.
+      let data: Buffer;
+      try {
+        if (entry.header.flags & 0x1) {
+          skippedEncrypted++;
+          continue;
+        }
+        data = entry.getData();
+      } catch {
+        skippedEncrypted++;
+        continue;
+      }
       if (!addEntry(c, entry.entryName, data)) break;
+    }
+    if (skippedEncrypted > 0) {
+      c.warnings.push(
+        `${skippedEncrypted} encrypted/unreadable zip entr${skippedEncrypted === 1 ? "y was" : "ies were"} skipped (password-protected content cannot be analyzed).`
+      );
+    }
+    if (c.fileCount === 0 && skippedEncrypted > 0) {
+      throw new Error(
+        "This archive appears to be password-protected — none of its entries could be read. Extract it locally with the password and re-upload the contents as a plain .zip/.tgz."
+      );
     }
   } else {
     let tarBuffer = buffer;

@@ -35,8 +35,26 @@ export async function POST(request: Request) {
   if ("response" in auth) return auth.response;
   const { user } = auth;
 
-  const form = await request.formData().catch(() => null);
-  const file = form?.get("file");
+  // Fast pre-check: reject oversized bodies before buffering the multipart data.
+  const contentLength = parseInt(request.headers.get("content-length") ?? "0", 10);
+  if (contentLength > config.limits.maxUploadBytes + 1024 * 1024) {
+    return apiError(
+      `File exceeds the maximum upload size of ${config.limits.maxUploadMb} MB.`,
+      413
+    );
+  }
+
+  let form: FormData;
+  try {
+    form = await request.formData();
+  } catch (err) {
+    return apiError(
+      `Could not read the uploaded file (${err instanceof Error ? err.message : "malformed request body"}). ` +
+        `If the file is larger than ${config.limits.maxUploadMb} MB, reduce it or raise MAX_UPLOAD_SIZE_MB.`,
+      400
+    );
+  }
+  const file = form.get("file");
   if (!(file instanceof File)) return apiError("No file provided (field 'file')", 400);
 
   // Optional vendor/product hints from the upload wizard.

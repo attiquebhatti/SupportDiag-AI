@@ -41,5 +41,8 @@ export async function middleware(req: NextRequest) {
 }
 
 export const config = {
-  matcher: ["/((?!_next/static|_next/image|favicon.ico).*)"],
+  // IMPORTANT: /api is excluded — API routes enforce auth themselves, and
+  // running middleware on API requests imposes Next's 10MB body limit,
+  // which breaks large support-file uploads.
+  matcher: ["/((?!api|_next/static|_next/image|favicon.ico).*)"],
 };

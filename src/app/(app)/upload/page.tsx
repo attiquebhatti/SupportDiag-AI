@@ -38,11 +38,17 @@ export default function UploadWizardPage() {
   ];
   const products = vendor !== "auto" ? productsForVendor(vendor as VendorId) : [];
 
+  const MAX_MB = 100;
+
   function pickFile(f: File | null) {
     setError(null);
     if (!f) return;
     if (!ACCEPTED.some((e) => f.name.toLowerCase().endsWith(e))) {
       setError(`Unsupported file type. Allowed: ${ACCEPTED.join(", ")}`);
+      return;
+    }
+    if (f.size > MAX_MB * 1024 * 1024) {
+      setError(`"${f.name}" is ${(f.size / 1024 / 1024).toFixed(1)} MB — the maximum upload size is ${MAX_MB} MB.`);
       return;
     }
     setFile(f);
