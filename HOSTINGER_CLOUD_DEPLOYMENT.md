@@ -93,8 +93,9 @@ From an SSH session in the app root (or a one-off deploy step):
 npx prisma migrate deploy      # applies committed migrations (0001_init + multivendor)
 ```
 
-Then run the seed — it creates demo users **and** populates the vendor parser and
-diagnostic rule registries used by the Vendor Parsers page:
+Then run the seed — in production it populates the vendor parser and diagnostic rule
+registries only (demo users with a known password are **skipped** when
+`NODE_ENV=production`; create your admin account through the register page instead):
 
 ```bash
 npm run seed

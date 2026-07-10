@@ -7,26 +7,37 @@ import { RULE_CATALOG_UNIQUE } from "../src/lib/rules/registry";
 const prisma = new PrismaClient();
 
 async function main() {
-  const org = await prisma.organization.upsert({
-    where: { id: "seed-org" },
-    update: {},
-    create: { id: "seed-org", name: "Default Organization", plan: "startup", retentionDays: 7 },
-  });
+  // Demo users are for local development only. In production, run the seed
+  // with default settings to register parsers/rules, and create the first
+  // (admin) account through the app's register page instead.
+  const seedDemoUsers =
+    process.env.SEED_DEMO_USERS === "true" || process.env.NODE_ENV !== "production";
 
-  const password = await bcrypt.hash("ChangeMe123!", 10);
-
-  const users = [
-    { email: "admin@firewalllens.local", name: "Admin User", role: "ADMIN" as const },
-    { email: "engineer@firewalllens.local", name: "Engineer User", role: "ENGINEER" as const },
-    { email: "viewer@firewalllens.local", name: "Viewer User", role: "VIEWER" as const },
-  ];
-
-  for (const u of users) {
-    await prisma.user.upsert({
-      where: { email: u.email },
+  if (seedDemoUsers) {
+    const org = await prisma.organization.upsert({
+      where: { id: "seed-org" },
       update: {},
-      create: { ...u, passwordHash: password, organizationId: org.id },
+      create: { id: "seed-org", name: "Default Organization", plan: "startup", retentionDays: 7 },
     });
+
+    const password = await bcrypt.hash("ChangeMe123!", 10);
+
+    const users = [
+      { email: "admin@firewalllens.local", name: "Admin User", role: "ADMIN" as const },
+      { email: "engineer@firewalllens.local", name: "Engineer User", role: "ENGINEER" as const },
+      { email: "viewer@firewalllens.local", name: "Viewer User", role: "VIEWER" as const },
+    ];
+
+    for (const u of users) {
+      await prisma.user.upsert({
+        where: { email: u.email },
+        update: {},
+        create: { ...u, passwordHash: password, organizationId: org.id },
+      });
+    }
+    console.log("Demo users seeded (local dev). Password: ChangeMe123!");
+  } else {
+    console.log("Production mode: skipping demo users (set SEED_DEMO_USERS=true to force).");
   }
 
   // Vendor parser registry
@@ -56,9 +67,7 @@ async function main() {
     });
   }
 
-  console.log("Seed complete. Default password for all seed users: ChangeMe123!");
-  console.log("Users:", users.map((u) => u.email).join(", "));
-  console.log(`Parsers: ${PARSER_CATALOG.length}, Rules: ${RULE_CATALOG_UNIQUE.length}`);
+  console.log(`Seed complete. Parsers: ${PARSER_CATALOG.length}, Rules: ${RULE_CATALOG_UNIQUE.length}`);
 }
 
 main()
