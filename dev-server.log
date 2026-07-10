@@ -67,3 +67,55 @@
  GET / 307 in 1900ms
  ✓ Compiled /login in 411ms (508 modules)
  GET /login 200 in 1167ms
+ GET / 307 in 155ms
+ GET /login 200 in 69ms
+ ○ Compiling /api/auth/login ...
+ ✓ Compiled /api/auth/login in 802ms (536 modules)
+ POST /api/auth/login 401 in 1200ms
+ ○ Compiling /register ...
+ ✓ Compiled /register in 1132ms (858 modules)
+ GET /register 200 in 1471ms
+ ○ Compiling /api/auth/register ...
+ ✓ Compiled /api/auth/register in 597ms (860 modules)
+ POST /api/auth/register 201 in 1099ms
+ ○ Compiling /dashboard ...
+ ✓ Compiled /dashboard in 6s (2162 modules)
+ POST /api/auth/register 409 in 2999ms
+ GET /dashboard 200 in 7545ms
+ GET /dashboard 200 in 586ms
+ ○ Compiling /reports ...
+ ✓ Compiled /reports in 1281ms (2166 modules)
+ GET /reports 200 in 1708ms
+ ○ Compiling /upload ...
+ ✓ Compiled /upload in 1721ms (1263 modules)
+ GET /upload 200 in 2060ms
+ ○ Compiling /cases ...
+ ✓ Compiled /cases in 1316ms (2185 modules)
+ GET /cases 200 in 1686ms
+ ○ Compiling /findings ...
+ ✓ Compiled /findings in 2.1s (2199 modules)
+ GET /findings 200 in 2377ms
+ GET /login 200 in 655ms
+ ○ Compiling /api/auth/login ...
+ ✓ Compiled /api/auth/login in 959ms (1262 modules)
+ POST /api/auth/login 200 in 1474ms
+ GET /dashboard 200 in 862ms
+ GET /dashboard 200 in 556ms
+ GET /upload 200 in 131ms
+ ○ Compiling /cases ...
+ ✓ Compiled /cases in 727ms (1268 modules)
+ GET /cases 200 in 1073ms
+ ✓ Compiled in 1478ms (1608 modules)
+ ✓ Compiled in 613ms (939 modules)
+ GET /cases 200 in 567ms
+ GET /findings 200 in 567ms
+ GET /cases 200 in 123ms
+ GET /findings 200 in 169ms
+ ○ Compiling /investigator ...
+ ✓ Compiled /investigator in 1891ms (1636 modules)
+ GET /investigator 200 in 2809ms
+ ✓ Compiled in 1219ms (939 modules)
+ GET /cases 200 in 681ms
+ GET /investigator 200 in 638ms
+ GET /cases 200 in 187ms
+ GET /investigator 200 in 301ms
