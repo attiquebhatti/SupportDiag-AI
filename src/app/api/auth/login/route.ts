@@ -15,8 +15,9 @@ export async function POST(request: Request) {
 
   const { email, password } = parsed.data;
   const user = await prisma.user.findUnique({ where: { email } });
-  // Constant-ish response to avoid user enumeration.
-  if (!user || !(await verifyPassword(password, user.passwordHash))) {
+  // Constant-ish response to avoid user enumeration. OAuth-only accounts
+  // (passwordHash null) can never authenticate with a password.
+  if (!user || !user.passwordHash || !(await verifyPassword(password, user.passwordHash))) {
     return apiError("Invalid email or password", 401);
   }
 

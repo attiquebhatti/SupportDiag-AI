@@ -5,24 +5,33 @@ import { useState } from "react";
 import {
   LayoutDashboard, UploadCloud, FolderSearch, AlertTriangle, Bot,
   Boxes, FileText, BookOpen, Settings, LogOut, Menu, Search, Bell,
-  HelpCircle, ChevronDown, Shield,
+  HelpCircle, ChevronDown, Shield, Users,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { BrandLogo } from "@/components/brand-logo";
 
+// minRole: VIEWER = everyone, ENGINEER = writers, ADMIN = admins only.
 const NAV = [
-  { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
-  { href: "/upload", label: "New Analysis", icon: UploadCloud },
-  { href: "/cases", label: "Cases / Analyses", icon: FolderSearch },
-  { href: "/findings", label: "Findings", icon: AlertTriangle },
-  { href: "/investigator", label: "AI Investigator", icon: Bot },
-  { href: "/parsers", label: "Vendor Parsers", icon: Boxes },
-  { href: "/reports", label: "Reports", icon: FileText },
-  { href: "/knowledge-base", label: "Knowledge Base", icon: BookOpen },
-  { href: "/settings", label: "Settings", icon: Settings },
+  { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard, minRole: "VIEWER" },
+  { href: "/upload", label: "New Analysis", icon: UploadCloud, minRole: "ENGINEER" },
+  { href: "/cases", label: "Cases / Analyses", icon: FolderSearch, minRole: "VIEWER" },
+  { href: "/findings", label: "Findings", icon: AlertTriangle, minRole: "VIEWER" },
+  { href: "/investigator", label: "AI Investigator", icon: Bot, minRole: "VIEWER" },
+  { href: "/parsers", label: "Vendor Parsers", icon: Boxes, minRole: "VIEWER" },
+  { href: "/reports", label: "Reports", icon: FileText, minRole: "VIEWER" },
+  { href: "/knowledge-base", label: "Knowledge Base", icon: BookOpen, minRole: "VIEWER" },
+  { href: "/team", label: "Team", icon: Users, minRole: "ADMIN" },
+  { href: "/settings", label: "Settings", icon: Settings, minRole: "VIEWER" },
 ];
+
+const ROLE_LEVEL: Record<string, number> = { VIEWER: 0, ENGINEER: 1, ADMIN: 2 };
+
+function navForRole(role: string) {
+  const level = ROLE_LEVEL[role] ?? 0;
+  return NAV.filter((item) => level >= (ROLE_LEVEL[item.minRole] ?? 0));
+}
 
 const ROLE_STYLES: Record<string, string> = {
   ADMIN: "border-amber-500/30 bg-amber-500/10 text-amber-500",
@@ -79,7 +88,7 @@ export function AppShell({
         </div>
 
         <nav className="flex-1 space-y-0.5 overflow-y-auto thin-scroll p-3">
-          {NAV.map((item) => {
+          {navForRole(user.role).map((item) => {
             const active = pathname === item.href || pathname.startsWith(item.href + "/");
             return (
               <Link
@@ -141,11 +150,13 @@ export function AppShell({
           </button>
 
           <div className="ml-auto flex items-center gap-1.5">
-            <Button asChild size="sm" className="hidden sm:inline-flex">
-              <Link href="/upload">
-                <UploadCloud className="h-4 w-4" /> Upload support file
-              </Link>
-            </Button>
+            {user.role !== "VIEWER" && (
+              <Button asChild size="sm" className="hidden sm:inline-flex">
+                <Link href="/upload">
+                  <UploadCloud className="h-4 w-4" /> Upload support file
+                </Link>
+              </Button>
+            )}
             <Button variant="ghost" size="icon" aria-label="Notifications">
               <Bell className="h-4 w-4" />
             </Button>

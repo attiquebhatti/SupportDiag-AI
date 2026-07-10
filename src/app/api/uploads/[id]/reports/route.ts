@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { prisma } from "@/lib/prisma";
 import { requireUploadAccess, apiError, json } from "@/lib/api";
+import { canWrite } from "@/lib/auth";
 import { buildHtmlReport, buildMarkdownReport, type ReportInput } from "@/lib/report";
 import { computeHealthScore } from "@/lib/health";
 
@@ -35,6 +36,9 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
   const { id } = await params;
   const access = await requireUploadAccess(id);
   if ("response" in access) return access.response;
+  if (!canWrite(access.user.role)) {
+    return apiError("Viewers have read-only access and cannot generate reports.", 403);
+  }
 
   const body = await req.json().catch(() => ({}));
   const parsed = schema.safeParse(body ?? {});

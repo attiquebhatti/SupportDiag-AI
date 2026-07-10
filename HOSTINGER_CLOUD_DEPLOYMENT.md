@@ -64,6 +64,11 @@ SUPABASE_BUCKET=support-files
 OPENAI_API_KEY=<key or blank>
 OPENAI_MODEL=gpt-4.1-mini
 ENABLE_AI=true
+# Optional Google sign-in — leave blank to hide the button.
+# Redirect URI to register in Google Cloud Console:
+#   https://firewalllens.thecyberadviser.com/api/auth/google/callback
+GOOGLE_CLIENT_ID=
+GOOGLE_CLIENT_SECRET=
 MAX_UPLOAD_SIZE_MB=100
 MAX_EXTRACTED_SIZE_MB=500
 MAX_EXTRACTED_FILES=10000

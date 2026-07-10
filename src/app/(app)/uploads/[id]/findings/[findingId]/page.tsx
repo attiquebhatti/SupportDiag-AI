@@ -8,6 +8,7 @@ import { FindingStatusControl } from "@/components/finding-status-control";
 import { AnalystNote } from "@/components/analyst-note";
 import { VendorBadge, ProductBadge } from "@/components/badges";
 import { redactText } from "@/lib/redaction";
+import { getCurrentUser, canWrite } from "@/lib/auth";
 
 export const dynamic = "force-dynamic";
 
@@ -29,6 +30,8 @@ export default async function FindingDetailPage({
 
   const upload = await prisma.upload.findUnique({ where: { id } });
   const redact = upload?.redactByDefault ?? true;
+  const user = await getCurrentUser();
+  const writer = user ? canWrite(user.role) : false;
   const evidence = (Array.isArray(finding.evidenceJson) ? finding.evidenceJson : []) as unknown as Evidence[];
 
   return (
@@ -96,13 +99,23 @@ export default async function FindingDetailPage({
               <p className="text-xs text-muted-foreground">
                 Current status: <span className="font-medium">{finding.status.replace("_", " ")}</span>
               </p>
-              <FindingStatusControl uploadId={id} findingId={finding.id} current={finding.status} />
+              {writer ? (
+                <FindingStatusControl uploadId={id} findingId={finding.id} current={finding.status} />
+              ) : (
+                <p className="text-xs text-muted-foreground">Read-only role — triage is disabled.</p>
+              )}
             </CardContent>
           </Card>
           <Card>
             <CardHeader><CardTitle className="text-base">Analyst Note</CardTitle></CardHeader>
             <CardContent>
-              <AnalystNote uploadId={id} findingId={finding.id} initialNote={finding.analystNote} />
+              {writer ? (
+                <AnalystNote uploadId={id} findingId={finding.id} initialNote={finding.analystNote} />
+              ) : finding.analystNote ? (
+                <p className="text-sm">{finding.analystNote}</p>
+              ) : (
+                <p className="text-xs text-muted-foreground">No analyst note.</p>
+              )}
             </CardContent>
           </Card>
         </div>

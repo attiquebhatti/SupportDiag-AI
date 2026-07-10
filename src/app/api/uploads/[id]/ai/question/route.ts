@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { prisma } from "@/lib/prisma";
 import { requireUploadAccess, apiError, json } from "@/lib/api";
+import { canWrite } from "@/lib/auth";
 import { retrieveEvidence, askQuestion } from "@/lib/ai";
 
 export const runtime = "nodejs";
@@ -13,6 +14,9 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
   const { id } = await params;
   const access = await requireUploadAccess(id);
   if ("response" in access) return access.response;
+  if (!canWrite(access.user.role)) {
+    return apiError("Viewers have read-only access and cannot ask AI questions.", 403);
+  }
 
   const body = await req.json().catch(() => null);
   const parsed = schema.safeParse(body);

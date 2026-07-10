@@ -37,7 +37,9 @@ export default async function UploadLayout({
             <p className="text-xs text-muted-foreground">Case {upload.id}</p>
           </div>
         </div>
-        <DeleteCaseButton uploadId={upload.id} />
+        {(user?.role === "ADMIN" || user?.role === "ENGINEER" || upload.userId === user?.id) && (
+          <DeleteCaseButton uploadId={upload.id} />
+        )}
       </div>
       <AnalysisNav uploadId={upload.id} />
       <div className="pt-2">{children}</div>

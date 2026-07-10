@@ -105,6 +105,37 @@ score → AI executive summary → complete`.
 
 Cron endpoints require `Authorization: Bearer $CRON_SECRET` or `?key=$CRON_SECRET`.
 
+## Roles & access control (RBAC)
+
+| Capability | Viewer | Engineer | Admin |
+|---|---|---|---|
+| Browse dashboard, cases, findings, evidence, files, timeline | ✅ | ✅ | ✅ |
+| Download existing reports | ✅ | ✅ | ✅ |
+| Upload & process support bundles | — | ✅ | ✅ |
+| Triage findings + analyst notes | — | ✅ | ✅ |
+| Ask AI Investigator questions | — | ✅ | ✅ |
+| Generate reports | — | ✅ | ✅ |
+| Delete cases | own only | ✅ | ✅ |
+| Team management (roles, remove users) | — | — | ✅ |
+
+Enforcement is server-side in every API route; the UI additionally hides actions the
+current role cannot perform. Admins manage members on the **Team** page. Safety rails:
+you cannot change your own role, and the last admin cannot be demoted or deleted.
+
+## Google sign-in (optional)
+
+1. In [Google Cloud Console](https://console.cloud.google.com/apis/credentials), create an
+   **OAuth client ID** (type *Web application*).
+2. Add `<NEXTAUTH_URL>/api/auth/google/callback` as an **Authorized redirect URI**
+   (e.g. `https://firewalllens.example.com/api/auth/google/callback`, or
+   `http://localhost:3000/api/auth/google/callback` for local dev).
+3. Set `GOOGLE_CLIENT_ID` and `GOOGLE_CLIENT_SECRET` in the environment and restart.
+
+The "Continue with Google" button appears automatically once configured. Google accounts
+are linked to existing users by email; new Google signups default to the Engineer role
+(the very first user in an empty system still becomes Admin). Password login is unaffected;
+Google-only accounts have no password.
+
 ## Security & privacy
 
 - Extension + size validation; extracted size/count caps; `..`/absolute paths rejected

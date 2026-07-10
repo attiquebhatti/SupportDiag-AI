@@ -37,6 +37,14 @@ export const config = {
     model: process.env.OPENAI_MODEL || "gpt-4.1-mini",
   },
 
+  google: {
+    clientId: process.env.GOOGLE_CLIENT_ID || "",
+    clientSecret: process.env.GOOGLE_CLIENT_SECRET || "",
+    get enabled() {
+      return !!(this.clientId && this.clientSecret);
+    },
+  },
+
   limits: {
     maxUploadBytes: intEnv("MAX_UPLOAD_SIZE_MB", 100) * 1024 * 1024,
     maxUploadMb: intEnv("MAX_UPLOAD_SIZE_MB", 100),

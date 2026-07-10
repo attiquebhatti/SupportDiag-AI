@@ -38,6 +38,7 @@ function Stat({ label, value, icon: Icn, accent, sub }: { label: string; value: 
 export default async function DashboardPage() {
   const user = await getCurrentUser();
   const scope = uploadScope(user!);
+  const writer = user!.role === "ADMIN" || user!.role === "ENGINEER";
 
   const [uploads, totalAnalyses, failedCount, findingAgg, catAgg, topFindings] = await Promise.all([
     prisma.upload.findMany({
@@ -123,13 +124,15 @@ export default async function DashboardPage() {
           <h1 className="text-2xl font-bold tracking-tight">Security Operations Dashboard</h1>
           <p className="text-sm text-muted-foreground">AI-assisted security support file analysis for faster troubleshooting.</p>
         </div>
-        <Button asChild size="lg">
-          <Link href="/upload"><UploadCloud className="h-4 w-4" /> New Diagnostic Analysis</Link>
-        </Button>
+        {writer && (
+          <Button asChild size="lg">
+            <Link href="/upload"><UploadCloud className="h-4 w-4" /> New Diagnostic Analysis</Link>
+          </Button>
+        )}
       </div>
 
       {isEmpty ? (
-        <EmptyState />
+        <EmptyState writer={writer} />
       ) : (
         <>
           {/* Hero stats */}
@@ -242,18 +245,22 @@ export default async function DashboardPage() {
   );
 }
 
-function EmptyState() {
+function EmptyState({ writer }: { writer: boolean }) {
   return (
     <Card className="border-dashed">
       <CardContent className="flex flex-col items-center gap-4 py-16 text-center">
         <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-primary/10"><UploadCloud className="h-8 w-8 text-primary" /></div>
         <div>
-          <h2 className="text-lg font-semibold">Upload your first support bundle</h2>
+          <h2 className="text-lg font-semibold">{writer ? "Upload your first support bundle" : "No analyses in this workspace yet"}</h2>
           <p className="mx-auto mt-1 max-w-md text-sm text-muted-foreground">
-            Upload a vendor support bundle to generate evidence-based findings. Sensitive values are redacted by default.
+            {writer
+              ? "Upload a vendor support bundle to generate evidence-based findings. Sensitive values are redacted by default."
+              : "Analyses uploaded by your team will appear here. Your role has read-only access."}
           </p>
         </div>
-        <Button asChild size="lg"><Link href="/upload"><UploadCloud className="h-4 w-4" /> New Diagnostic Analysis</Link></Button>
+        {writer && (
+          <Button asChild size="lg"><Link href="/upload"><UploadCloud className="h-4 w-4" /> New Diagnostic Analysis</Link></Button>
+        )}
         <div className="mt-4 grid gap-2 text-left sm:grid-cols-2">
           {PRODUCTS.filter((p) => p.status !== "planned").map((p) => (
             <div key={p.id} className="flex items-center gap-2 rounded-lg border p-2 text-sm">
