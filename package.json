@@ -1,8 +1,8 @@
 {
-  "name": "firewalllens-ai",
+  "name": "supportdiag-ai",
   "version": "1.0.0",
   "private": true,
-  "description": "AI-assisted firewall support file analysis for faster troubleshooting.",
+  "description": "AI-powered support file diagnostics for security and network teams.",
   "scripts": {
     "dev": "next dev",
     "build": "prisma generate && next build",

@@ -12,6 +12,13 @@ export const maxDuration = 120;
 async function handle(request: Request) {
   if (!verifyCronAuth(request)) return apiError("Unauthorized", 401);
 
+  // Heartbeat for the Admin Health page.
+  await prisma.systemState.upsert({
+    where: { key: "last-cron-cleanup" },
+    update: { value: new Date().toISOString() },
+    create: { key: "last-cron-cleanup", value: new Date().toISOString() },
+  }).catch(() => {});
+
   const cutoff = new Date(Date.now() - config.retentionDays * 24 * 60 * 60 * 1000);
   const expired = await prisma.upload.findMany({
     where: { createdAt: { lt: cutoff }, deletedAt: null },

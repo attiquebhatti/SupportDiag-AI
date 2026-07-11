@@ -11,7 +11,7 @@ export default async function FilesPage({
   const { path } = await searchParams;
   return (
     <div className="space-y-4">
-      <h2 className="text-lg font-semibold">File Explorer</h2>
+      <h2 className="text-lg font-semibold">Evidence Explorer</h2>
       <FileExplorer uploadId={id} initialPath={path} />
     </div>
   );

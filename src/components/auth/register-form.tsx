@@ -41,7 +41,7 @@ export function RegisterForm({ googleEnabled }: { googleEnabled: boolean }) {
       <div className="w-full max-w-sm">
         <div className="mb-6 flex flex-col items-center text-center">
           <ShieldCheck className="h-10 w-10 text-primary" />
-          <h1 className="mt-2 text-xl font-bold">FirewallLens AI</h1>
+          <h1 className="mt-2 text-xl font-bold">SupportDiag AI</h1>
         </div>
         <Card>
           <CardHeader>

@@ -51,8 +51,8 @@ function LoginFormInner({ googleEnabled }: { googleEnabled: boolean }) {
       <div className="w-full max-w-sm">
         <div className="mb-6 flex flex-col items-center text-center">
           <ShieldCheck className="h-10 w-10 text-primary" />
-          <h1 className="mt-2 text-xl font-bold">FirewallLens AI</h1>
-          <p className="text-sm text-muted-foreground">Security Support File Analyzer</p>
+          <h1 className="mt-2 text-xl font-bold">SupportDiag AI</h1>
+          <p className="text-sm text-muted-foreground">Support File Analyzer</p>
         </div>
         <Card>
           <CardHeader>
@@ -87,7 +87,7 @@ function LoginFormInner({ googleEnabled }: { googleEnabled: boolean }) {
           </CardContent>
         </Card>
         <p className="mt-4 text-center text-xs text-muted-foreground">
-          Independent diagnostic assistant — not an official vendor tool.
+          Independent diagnostic assistant — not affiliated with or endorsed by any vendor.
         </p>
       </div>
     </div>

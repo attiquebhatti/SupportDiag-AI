@@ -12,6 +12,13 @@ export const maxDuration = 300;
 async function handle(request: Request) {
   if (!verifyCronAuth(request)) return apiError("Unauthorized", 401);
 
+  // Heartbeat for the Admin Health page.
+  await prisma.systemState.upsert({
+    where: { key: "last-cron-process" },
+    update: { value: new Date().toISOString() },
+    create: { key: "last-cron-process", value: new Date().toISOString() },
+  }).catch(() => {});
+
   // Reclaim jobs that have been PENDING, or FAILED with few attempts.
   const jobs = await prisma.analysisJob.findMany({
     where: {

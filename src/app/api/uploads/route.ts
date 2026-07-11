@@ -39,7 +39,7 @@ export async function POST(request: Request) {
   const contentLength = parseInt(request.headers.get("content-length") ?? "0", 10);
   if (contentLength > config.limits.maxUploadBytes + 1024 * 1024) {
     return apiError(
-      `File exceeds the maximum upload size of ${config.limits.maxUploadMb} MB.`,
+      `This file is larger than the current hosting limit (${config.limits.maxUploadMb} MB). Please increase the upload limit (MAX_UPLOAD_SIZE_MB) or use the VPS processing version.`,
       413
     );
   }

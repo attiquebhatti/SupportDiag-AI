@@ -3,8 +3,8 @@ import "./globals.css";
 import { ThemeProvider } from "@/components/theme-provider";
 
 export const metadata: Metadata = {
-  title: "FirewallLens AI — Security Support File Analyzer",
-  description: "AI-assisted security support file analysis for faster troubleshooting.",
+  title: "SupportDiag AI — Support File Analyzer",
+  description: "AI-powered support file diagnostics for security and network teams.",
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {

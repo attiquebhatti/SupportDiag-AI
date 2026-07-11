@@ -19,7 +19,7 @@ export interface AIAnswer {
 const NO_EVIDENCE_MESSAGE =
   "I could not find evidence for this in the uploaded support file.";
 
-const SYSTEM_PROMPT = `You are FirewallLens AI, an independent assistant that analyzes Palo Alto Networks PAN-OS tech support files.
+const SYSTEM_PROMPT = `You are SupportDiag AI, an independent diagnostic assistant that analyzes vendor support files, logs, and troubleshooting bundles (Palo Alto Networks PAN-OS/Panorama/Cortex, Check Point, Fortinet, and generic logs).
 
 STRICT RULES:
 - Answer ONLY from the provided EVIDENCE. Never use outside knowledge to state facts about this device.
@@ -204,7 +204,7 @@ export async function generateSummary(
         {
           role: "system",
           content:
-            "You are FirewallLens AI. Write a concise, factual 2-4 sentence executive summary of a PAN-OS firewall's health based ONLY on the supplied device info and findings. Do not invent issues. Do not claim TAC confirmation.",
+            "You are SupportDiag AI. Write a concise, factual 2-4 sentence executive summary of the analyzed device/platform's health based ONLY on the supplied device info and findings. Do not invent issues. Do not claim official vendor TAC confirmation.",
         },
         { role: "user", content: context },
       ],

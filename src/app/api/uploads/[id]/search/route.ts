@@ -33,7 +33,9 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
     where: {
       uploadId: id,
       indexed: true,
-      ...(pathFilter ? { path: { contains: pathFilter, mode: "insensitive" } } : {}),
+      // MySQL's default collation is case-insensitive; `mode: "insensitive"`
+      // is a Postgres-only Prisma option and must not be used here.
+      ...(pathFilter ? { path: { contains: pathFilter } } : {}),
     },
     select: { id: true, path: true, content: true },
   });

@@ -23,9 +23,9 @@ async function main() {
     const password = await bcrypt.hash("ChangeMe123!", 10);
 
     const users = [
-      { email: "admin@firewalllens.local", name: "Admin User", role: "ADMIN" as const },
-      { email: "engineer@firewalllens.local", name: "Engineer User", role: "ENGINEER" as const },
-      { email: "viewer@firewalllens.local", name: "Viewer User", role: "VIEWER" as const },
+      { email: "admin@supportdiag.local", name: "Admin User", role: "ADMIN" as const },
+      { email: "engineer@supportdiag.local", name: "Engineer User", role: "ENGINEER" as const },
+      { email: "viewer@supportdiag.local", name: "Viewer User", role: "VIEWER" as const },
     ];
 
     for (const u of users) {

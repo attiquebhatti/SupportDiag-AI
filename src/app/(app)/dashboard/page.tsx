@@ -122,7 +122,7 @@ export default async function DashboardPage() {
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <h1 className="text-2xl font-bold tracking-tight">Security Operations Dashboard</h1>
-          <p className="text-sm text-muted-foreground">AI-assisted security support file analysis for faster troubleshooting.</p>
+          <p className="text-sm text-muted-foreground">AI-powered support file diagnostics for security and network teams.</p>
         </div>
         {writer && (
           <Button asChild size="lg">
@@ -271,7 +271,7 @@ function EmptyState({ writer }: { writer: boolean }) {
           ))}
         </div>
         <div className="mt-2 flex items-center gap-2 text-xs text-muted-foreground">
-          <Clock className="h-3.5 w-3.5" /> Getting started: pick a vendor, upload, and let FirewallLens analyze the evidence.
+          <Clock className="h-3.5 w-3.5" /> Getting started: pick a vendor, upload, and let SupportDiag analyze the evidence.
         </div>
       </CardContent>
     </Card>

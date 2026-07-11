@@ -1,7 +1,7 @@
 "use client";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { MoreHorizontal, ExternalLink, AlertTriangle, Bot, FileDown, Trash2 } from "lucide-react";
+import { MoreHorizontal, ExternalLink, AlertTriangle, Bot, FileDown, Trash2, Play } from "lucide-react";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator } from "@/components/ui/dropdown-menu";
 import { VendorBadge, ProductBadge, UploadStatusBadge } from "@/components/badges";
@@ -37,6 +37,11 @@ export function RecentAnalyses({ rows }: { rows: AnalysisRow[] }) {
     if (!confirm("Delete this case? This purges the stored archive and extracted data.")) return;
     const res = await fetch(`/api/uploads/${id}`, { method: "DELETE" });
     if (res.ok) router.refresh();
+  }
+
+  async function processNow(id: string) {
+    fetch(`/api/uploads/${id}/process`, { method: "POST" }).catch(() => {});
+    router.push(`/uploads/${id}/status`);
   }
 
   return (
@@ -87,6 +92,9 @@ export function RecentAnalyses({ rows }: { rows: AnalysisRow[] }) {
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align="end">
                       <DropdownMenuItem onClick={() => router.push(href)}><ExternalLink /> Open analysis</DropdownMenuItem>
+                      {r.status !== "COMPLETED" && r.status !== "PROCESSING" && (
+                        <DropdownMenuItem onClick={() => processNow(r.id)}><Play /> Process Now</DropdownMenuItem>
+                      )}
                       <DropdownMenuItem onClick={() => router.push(`/uploads/${r.id}/findings`)}><AlertTriangle /> View findings</DropdownMenuItem>
                       <DropdownMenuItem onClick={() => router.push(`/uploads/${r.id}/ai`)}><Bot /> Ask AI</DropdownMenuItem>
                       <DropdownMenuItem onClick={() => router.push(`/uploads/${r.id}/report`)}><FileDown /> Export report</DropdownMenuItem>

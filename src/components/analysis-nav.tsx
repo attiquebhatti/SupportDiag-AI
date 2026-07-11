@@ -8,9 +8,9 @@ export function AnalysisNav({ uploadId }: { uploadId: string }) {
   const base = `/uploads/${uploadId}`;
   const tabs = [
     { href: base, label: "Overview" },
-    { href: `${base}/findings`, label: "Findings" },
+    { href: `${base}/findings`, label: "Diagnostic Findings" },
     { href: `${base}/evidence`, label: "Evidence" },
-    { href: `${base}/files`, label: "File Explorer" },
+    { href: `${base}/files`, label: "Evidence Explorer" },
     { href: `${base}/timeline`, label: "Timeline" },
     { href: `${base}/search`, label: "Search" },
     { href: `${base}/ai`, label: "AI Investigator" },

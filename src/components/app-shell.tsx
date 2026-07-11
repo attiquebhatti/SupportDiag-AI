@@ -5,7 +5,7 @@ import { useState } from "react";
 import {
   LayoutDashboard, UploadCloud, FolderSearch, AlertTriangle, Bot,
   Boxes, FileText, BookOpen, Settings, LogOut, Menu, Search, Bell,
-  HelpCircle, ChevronDown, Shield, Users,
+  HelpCircle, ChevronDown, Shield, Users, HeartPulse,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -16,13 +16,14 @@ import { BrandLogo } from "@/components/brand-logo";
 const NAV = [
   { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard, minRole: "VIEWER" },
   { href: "/upload", label: "New Analysis", icon: UploadCloud, minRole: "ENGINEER" },
-  { href: "/cases", label: "Cases / Analyses", icon: FolderSearch, minRole: "VIEWER" },
-  { href: "/findings", label: "Findings", icon: AlertTriangle, minRole: "VIEWER" },
+  { href: "/cases", label: "Cases", icon: FolderSearch, minRole: "VIEWER" },
+  { href: "/findings", label: "Diagnostic Findings", icon: AlertTriangle, minRole: "VIEWER" },
   { href: "/investigator", label: "AI Investigator", icon: Bot, minRole: "VIEWER" },
   { href: "/parsers", label: "Vendor Parsers", icon: Boxes, minRole: "VIEWER" },
   { href: "/reports", label: "Reports", icon: FileText, minRole: "VIEWER" },
   { href: "/knowledge-base", label: "Knowledge Base", icon: BookOpen, minRole: "VIEWER" },
   { href: "/team", label: "Team", icon: Users, minRole: "ADMIN" },
+  { href: "/health", label: "System Health", icon: HeartPulse, minRole: "ADMIN" },
   { href: "/settings", label: "Settings", icon: Settings, minRole: "VIEWER" },
 ];
 
@@ -71,8 +72,8 @@ export function AppShell({
         <div className="flex h-16 items-center gap-3 border-b px-4">
           <BrandLogo />
           <div className="leading-tight">
-            <div className="text-sm font-semibold tracking-tight">FirewallLens AI</div>
-            <div className="text-[10px] text-muted-foreground">Security Support File Analyzer</div>
+            <div className="text-sm font-semibold tracking-tight">SupportDiag AI</div>
+            <div className="text-[10px] text-muted-foreground">Support File Analyzer</div>
           </div>
         </div>
 
@@ -153,7 +154,7 @@ export function AppShell({
             {user.role !== "VIEWER" && (
               <Button asChild size="sm" className="hidden sm:inline-flex">
                 <Link href="/upload">
-                  <UploadCloud className="h-4 w-4" /> Upload support file
+                  <UploadCloud className="h-4 w-4" /> New Diagnostic Analysis
                 </Link>
               </Button>
             )}

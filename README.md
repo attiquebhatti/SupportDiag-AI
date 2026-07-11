@@ -1,8 +1,8 @@
-# FirewallLens AI
+# SupportDiag AI
 
-**AI-assisted security support file analysis for faster troubleshooting.**
+**AI-powered support file diagnostics for security and network teams.**
 
-FirewallLens AI is an independent, multi-vendor cybersecurity diagnostic platform. Upload a
+SupportDiag AI is an AI-assisted diagnostic platform that helps engineers analyze support files, logs, and troubleshooting bundles from firewalls, security platforms, and infrastructure systems. Upload a
 vendor support bundle — firewall tech support files, Panorama exports, Cortex XDR/XSIAM log
 bundles, diagnostic archives, or raw logs — and get safe extraction, structured parsing,
 evidence-based findings, a health score, an evidence-grounded AI Investigator, and exportable
@@ -60,20 +60,28 @@ generic error/timeline analysis with a "Low" parser-confidence label.
 ## Tech stack
 
 Next.js 15 (App Router) · React 19 · TypeScript · Tailwind CSS · Radix/shadcn-style UI ·
-TanStack Table · Recharts · Monaco Editor · next-themes · Prisma · PostgreSQL (Neon/Supabase) ·
-Supabase Storage · OpenAI-compatible API.
+TanStack Table · Recharts · Monaco Editor · next-themes · Prisma · **MySQL/MariaDB** (Hostinger; PostgreSQL optional) ·
+local disk storage (Supabase/S3 optional drivers) · OpenAI-compatible API.
+
+## Database options
+
+- **MySQL / MariaDB (default)** — matches Hostinger hPanel databases; the committed
+  Prisma migrations are MySQL-native. Local dev: `docker run -d --name supportdiag-mysql -e MYSQL_DATABASE=supportdiag -e MYSQL_USER=supportdiag -e MYSQL_PASSWORD=pw -e MYSQL_ROOT_PASSWORD=rootpw -p 3306:3306 mysql:8`
+- **PostgreSQL (optional)** — switch `provider` to `postgresql` in `prisma/schema.prisma`,
+  drop the `@db.LongText` annotations, delete `prisma/migrations`, and regenerate a
+  baseline (`prisma migrate diff --from-empty --to-schema-datamodel …`).
 
 ## Quick start (local)
 
 ```bash
 npm install
-cp .env.example .env        # set DATABASE_URL/DIRECT_URL, NEXTAUTH_SECRET; STORAGE_PROVIDER=local for testing
-npx prisma migrate deploy   # applies committed migrations (0001_init + multivendor)
+cp .env.example .env        # set DATABASE_URL (MySQL), NEXTAUTH_SECRET; STORAGE_DRIVER=local
+npx prisma migrate deploy   # applies the committed MySQL migrations
 npm run seed                # demo users + vendor parser & diagnostic rule registries
 npm run dev                 # http://localhost:3000
 ```
 
-Seed users (password `ChangeMe123!`): `admin@` / `engineer@` / `viewer@firewalllens.local`.
+Seed users (password `ChangeMe123!`): `admin@` / `engineer@` / `viewer@supportdiag.local`.
 The first account you register yourself becomes Admin.
 
 ## Architecture
@@ -127,7 +135,7 @@ you cannot change your own role, and the last admin cannot be demoted or deleted
 1. In [Google Cloud Console](https://console.cloud.google.com/apis/credentials), create an
    **OAuth client ID** (type *Web application*).
 2. Add `<NEXTAUTH_URL>/api/auth/google/callback` as an **Authorized redirect URI**
-   (e.g. `https://firewalllens.example.com/api/auth/google/callback`, or
+   (e.g. `https://supportdiag.example.com/api/auth/google/callback`, or
    `http://localhost:3000/api/auth/google/callback` for local dev).
 3. Set `GOOGLE_CLIENT_ID` and `GOOGLE_CLIENT_SECRET` in the environment and restart.
 
@@ -146,10 +154,10 @@ Google-only accounts have no password.
 
 ## Deployment
 
-See **[HOSTINGER_CLOUD_DEPLOYMENT.md](HOSTINGER_CLOUD_DEPLOYMENT.md)**. Build:
+See **[HOSTINGER_DEPLOYMENT.md](HOSTINGER_DEPLOYMENT.md)**. Build:
 `npm install && npx prisma generate && npm run build` · Start: `npm start`.
 No Docker, Redis, Celery, or long-running daemons required.
 
 ## License
 
-Provided as an MVP scaffold for the FirewallLens AI project.
+Provided as an MVP scaffold for the SupportDiag AI project.

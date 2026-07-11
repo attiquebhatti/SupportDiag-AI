@@ -25,7 +25,7 @@ export async function GET(req: Request, { params }: { params: Promise<{ reportId
     headers: {
       "Content-Type": contentType,
       ...(download
-        ? { "Content-Disposition": `attachment; filename="firewalllens-report-${reportId}.${ext}"` }
+        ? { "Content-Disposition": `attachment; filename="supportdiag-report-${reportId}.${ext}"` }
         : {}),
     },
   });

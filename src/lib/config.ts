@@ -24,10 +24,26 @@ export const config = {
   },
 
   storage: {
-    provider: (process.env.STORAGE_PROVIDER || "local").toLowerCase(),
+    // STORAGE_DRIVER is canonical; STORAGE_PROVIDER kept as a legacy alias.
+    driver: (process.env.STORAGE_DRIVER || process.env.STORAGE_PROVIDER || "local").toLowerCase(),
+    get provider() {
+      return this.driver;
+    },
+    uploadDir: process.env.UPLOAD_DIR || "./storage/uploads",
+    extractedDir: process.env.EXTRACTED_DIR || "./storage/extracted",
+    reportDir: process.env.REPORT_DIR || "./storage/reports",
     supabaseUrl: process.env.SUPABASE_URL || "",
     supabaseServiceRoleKey: process.env.SUPABASE_SERVICE_ROLE_KEY || "",
     supabaseBucket: process.env.SUPABASE_BUCKET || "support-files",
+  },
+
+  // Default redaction policy (report/AI defaults; secrets are always redacted).
+  redaction: {
+    serialNumbers: boolEnv("REDACT_SERIAL_NUMBERS", true),
+    ipAddresses: boolEnv("REDACT_IP_ADDRESSES", true),
+    emails: boolEnv("REDACT_EMAILS", true),
+    certificates: boolEnv("REDACT_CERTIFICATES", true),
+    secrets: boolEnv("REDACT_SECRETS", true),
   },
 
   ai: {
@@ -59,8 +75,8 @@ export const config = {
 
   cron: {
     secret: process.env.CRON_SECRET || "",
-    // Max jobs processed per cron invocation to stay within request time limits.
-    batchSize: intEnv("CRON_BATCH_SIZE", 2),
+    // Hostinger Cloud: one job per cron tick keeps memory/time within limits.
+    batchSize: intEnv("CRON_BATCH_SIZE", 1),
   },
 
   supportedExtensions: [".tgz", ".tar.gz", ".tar", ".zip"] as const,

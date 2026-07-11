@@ -48,7 +48,9 @@ export function UploadWizard({ maxUploadMb }: { maxUploadMb: number }) {
       return;
     }
     if (f.size > MAX_MB * 1024 * 1024) {
-      setError(`"${f.name}" is ${(f.size / 1024 / 1024).toFixed(1)} MB — the maximum upload size is ${MAX_MB} MB.`);
+      setError(
+        `"${f.name}" is ${(f.size / 1024 / 1024).toFixed(1)} MB. This file is larger than the current hosting limit (${MAX_MB} MB). Please increase the upload limit or use the VPS processing version.`
+      );
       return;
     }
     setFile(f);
@@ -112,7 +114,7 @@ export function UploadWizard({ maxUploadMb }: { maxUploadMb: number }) {
                     <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-muted"><Icon name={v.icon} className="h-5 w-5 text-primary" /></div>
                     <div>
                       <div className="font-medium">{v.label}</div>
-                      {v.id === "auto" && <div className="text-xs text-muted-foreground">Let FirewallLens identify the vendor</div>}
+                      {v.id === "auto" && <div className="text-xs text-muted-foreground">Let SupportDiag identify the vendor</div>}
                     </div>
                     {vendor === v.id && <Check className="ml-auto h-4 w-4 text-primary" />}
                   </button>

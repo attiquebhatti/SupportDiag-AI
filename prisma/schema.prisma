@@ -1,15 +1,15 @@
-// FirewallLens AI — Prisma schema
-// PostgreSQL (Neon / Supabase). Uses a pooled DATABASE_URL at runtime and a
-// DIRECT_URL for migrations, matching the Hostinger Cloud deployment model.
+// SupportDiag AI — Prisma schema
+// Primary target: MySQL / MariaDB (Hostinger hPanel databases).
+// PostgreSQL remains possible by switching the provider and regenerating
+// migrations (see README "Database options").
 
 generator client {
   provider = "prisma-client-js"
 }
 
 datasource db {
-  provider  = "postgresql"
-  url       = env("DATABASE_URL")
-  directUrl = env("DIRECT_URL")
+  provider = "mysql"
+  url      = env("DATABASE_URL")
 }
 
 enum Role {
@@ -32,6 +32,7 @@ enum JobStatus {
   RUNNING
   COMPLETED
   FAILED
+  CANCELLED
 }
 
 enum Severity {
@@ -126,7 +127,7 @@ model AnalysisJob {
   status       JobStatus @default(PENDING)
   currentStep  String    @default("queued")
   progress     Int       @default(0)
-  errorMessage String?
+  errorMessage String? @db.Text
   attempts     Int       @default(0)
   startedAt    DateTime?
   completedAt  DateTime?
@@ -180,7 +181,7 @@ model ExtractedFile {
   fileType  String?
   size      Int
   hash      String?
-  content   String? // only stored for indexed text files
+  content   String? @db.LongText // only stored for indexed text files
   indexed   Boolean  @default(false)
   createdAt DateTime @default(now())
 
@@ -216,13 +217,13 @@ model Finding {
   severity       Severity
   category       String
   title          String
-  description    String
-  impact         String
-  recommendation String
+  description    String @db.Text
+  impact         String @db.Text
+  recommendation String @db.Text
   confidence     Int // 0-100
   evidenceJson   Json
   status         FindingStatus @default(OPEN)
-  analystNote    String?
+  analystNote    String? @db.Text
   createdAt      DateTime      @default(now())
 
   @@index([uploadId])
@@ -236,8 +237,8 @@ model AIConversation {
   upload       Upload   @relation(fields: [uploadId], references: [id], onDelete: Cascade)
   userId       String
   user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  question     String
-  answer       String
+  question     String @db.Text
+  answer       String @db.Text
   evidenceJson Json
   createdAt    DateTime @default(now())
 
@@ -250,7 +251,7 @@ model Report {
   upload     Upload   @relation(fields: [uploadId], references: [id], onDelete: Cascade)
   reportType String // executive | technical | customer | internal (+ format)
   format     String   @default("html") // html | markdown
-  content    String
+  content    String @db.LongText
   redacted   Boolean  @default(true)
   createdAt  DateTime @default(now())
 
@@ -286,4 +287,11 @@ model DiagnosticRule {
   updatedAt DateTime @updatedAt
 
   @@index([vendor, product])
+}
+
+// Small key-value state store (cron heartbeats, operational flags).
+model SystemState {
+  key       String   @id
+  value     String   @db.Text
+  updatedAt DateTime @updatedAt
 }

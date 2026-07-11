@@ -126,7 +126,7 @@ export default async function OverviewPage({ params }: { params: Promise<{ id: s
             {aiSummary || "No AI summary available. Enable AI (ENABLE_AI=true) to generate an evidence-based summary."}
           </p>
           <p className="mt-3 text-xs text-muted-foreground">
-            Independent diagnostic assistant — not an official Palo Alto Networks tool. Does not replace TAC.
+            Independent diagnostic assistant — not affiliated with or endorsed by any vendor. Validate findings before production changes.
           </p>
         </CardContent>
       </Card>
