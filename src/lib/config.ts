@@ -61,6 +61,18 @@ export const config = {
     },
   },
 
+  // Cross-app SSO from an external identity provider (TheCyberAdviser site).
+  // The site mints a short-lived HS256 ticket signed with this shared secret;
+  // /api/auth/sso verifies it and establishes a local session.
+  sso: {
+    secret: process.env.SUPPORTDIAG_SSO_SECRET || "",
+    issuer: process.env.SUPPORTDIAG_SSO_ISSUER || "thecyberadviser",
+    audience: "supportdiag",
+    get enabled() {
+      return !!this.secret;
+    },
+  },
+
   limits: {
     maxUploadBytes: intEnv("MAX_UPLOAD_SIZE_MB", 100) * 1024 * 1024,
     maxUploadMb: intEnv("MAX_UPLOAD_SIZE_MB", 100),

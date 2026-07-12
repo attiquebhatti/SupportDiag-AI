@@ -144,6 +144,15 @@ are linked to existing users by email; new Google signups default to the Enginee
 (the very first user in an empty system still becomes Admin). Password login is unaffected;
 Google-only accounts have no password.
 
+## Single sign-on from TheCyberAdviser (optional)
+
+SupportDiag can accept users from the TheCyberAdviser site without a separate
+signup. Set `SUPPORTDIAG_SSO_SECRET` to a value shared with the site; the site
+mints a short-lived HS256 ticket for a signed-in user, and `/api/auth/sso?ticket=…`
+verifies it, finds-or-creates the user by email (default role Engineer, first user
+Admin), and establishes the session. Direct email/password and Google login remain
+available. Leave the secret blank to disable SSO.
+
 ## Security & privacy
 
 - Extension + size validation; extracted size/count caps; `..`/absolute paths rejected

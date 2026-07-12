@@ -15,6 +15,10 @@ const OAUTH_ERRORS: Record<string, string> = {
   google_state: "Sign-in session expired — please try again.",
   google_failed: "Google sign-in failed — please try again.",
   google_unverified: "Your Google account email is not verified.",
+  sso_not_configured: "Single sign-on is not configured on this deployment.",
+  sso_missing_ticket: "Single sign-on link was incomplete — please launch again from TheCyberAdviser.",
+  sso_invalid_ticket: "Your single sign-on link expired — please launch again from TheCyberAdviser.",
+  sso_no_email: "Your TheCyberAdviser account has no email — cannot sign in.",
 };
 
 function LoginFormInner({ googleEnabled }: { googleEnabled: boolean }) {
