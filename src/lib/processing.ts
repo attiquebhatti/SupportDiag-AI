@@ -9,6 +9,10 @@ import { computeHealthScore } from "./health";
 import { generateSummary } from "./ai";
 import { detectVendorProduct } from "./detection";
 import { PRODUCT_MAP, vendorLabel, productLabel } from "./vendors";
+import { buildManifest, classifyPath } from "./panos/artifacts";
+import { looksLikeCliSnapshot, parseCliSnapshot, sectionsAsVirtualFiles } from "./panos/cli-snapshot";
+import { buildEvidenceModel } from "./panos/version";
+import { matchKnownIssues, KNOWN_ISSUE_CATALOG, type KnownIssueDef } from "./known-issues";
 import type { Severity as PrismaSeverity } from "@prisma/client";
 import type { Severity } from "./rules/types";
 
@@ -79,6 +83,7 @@ export async function processUpload(uploadId: string): Promise<void> {
       prisma.parsedArtifact.deleteMany({ where: { uploadId } }),
       prisma.finding.deleteMany({ where: { uploadId } }),
       prisma.asset.deleteMany({ where: { uploadId } }),
+      prisma.knownIssueMatch.deleteMany({ where: { uploadId } }),
     ]);
 
     // Insert in batches to stay within statement limits.
@@ -115,9 +120,48 @@ export async function processUpload(uploadId: string): Promise<void> {
       },
     });
 
-    // 5. Run the parser set for the detected product
+    // 5. Normalize TSF structure: manifest + CLI snapshot expansion
+    await setStep(uploadId, "normalizing", 55);
+    const allPaths = extraction.entries.map((e) => e.path);
+    const manifest = buildManifest(allPaths, detection.product);
+
+    // Split monolithic CLI techsupport dumps into per-command virtual files so
+    // every downstream parser sees clean command output.
+    const cliVirtualFiles: Array<{ path: string; content: string }> = [];
+    const cliCommandsFound: string[] = [];
+    for (const f of indexed) {
+      const fam = classifyPath(f.path);
+      if (fam?.id === "CLI_TECHSUPPORT" || (!fam && looksLikeCliSnapshot(f.content))) {
+        const snapshot = parseCliSnapshot(f.content);
+        cliVirtualFiles.push(...sectionsAsVirtualFiles(f.path, snapshot));
+        cliCommandsFound.push(...snapshot.commandsFound);
+      }
+    }
+    const parserInput = [...indexed, ...cliVirtualFiles];
+
+    await prisma.parsedArtifact.create({
+      data: {
+        uploadId,
+        vendor: detection.vendor,
+        product: detection.product,
+        parserName: "tsf-normalizer",
+        artifactType: "tsf-manifest",
+        dataJson: {
+          totalFiles: manifest.totalFiles,
+          classified: manifest.classified,
+          familiesPresent: manifest.familiesPresent,
+          familyCounts: manifest.familyCounts,
+          missingEvidence: manifest.missingEvidence,
+          cliCommandsFound: [...new Set(cliCommandsFound)].sort(),
+          cliSectionsIndexed: cliVirtualFiles.length,
+        },
+        sourceFilePath: null,
+      },
+    });
+
+    // 6. Run the parser set for the detected product
     await setStep(uploadId, "parsing", 62);
-    const artifacts = runParsersForProduct(detection.vendor, detection.product, indexed);
+    const artifacts = runParsersForProduct(detection.vendor, detection.product, parserInput);
     if (artifacts.length > 0) {
       await prisma.parsedArtifact.createMany({
         data: artifacts.map((a) => ({
@@ -152,7 +196,65 @@ export async function processUpload(uploadId: string): Promise<void> {
       },
     });
 
-    // 7. Run the rule set for the detected product
+    // 7. Version-aware evidence model (PAN-OS products)
+    if (detection.vendor === "palo_alto") {
+      const evidenceModel = buildEvidenceModel(device.panosVersion);
+      await prisma.parsedArtifact.create({
+        data: {
+          uploadId,
+          vendor: detection.vendor,
+          product: detection.product,
+          parserName: "panos-version-layer",
+          artifactType: "panos-evidence-model",
+          dataJson: evidenceModel as unknown as object,
+          sourceFilePath: null,
+        },
+      });
+    }
+
+    // 8. Version-aware known-issue matching (DB definitions, catalog fallback)
+    await setStep(uploadId, "matching-known-issues", 78);
+    let issueDefs: KnownIssueDef[] = KNOWN_ISSUE_CATALOG;
+    const dbIssues = await prisma.knownIssue.findMany({ where: { enabled: true } });
+    if (dbIssues.length > 0) {
+      issueDefs = dbIssues.map((i) => ({
+        issueId: i.issueId,
+        vendor: i.vendor,
+        product: i.product,
+        title: i.title,
+        minAffectedVersion: i.minAffectedVersion,
+        maxAffectedVersion: i.maxAffectedVersion,
+        fixedVersion: i.fixedVersion,
+        symptomPatterns: (i.symptomPatternsJson as string[]) ?? [],
+        requiredEvidence: (i.requiredEvidenceJson as string[]) ?? [],
+        exclusionPatterns: (i.exclusionCriteriaJson as string[]) ?? [],
+        sourceReference: i.sourceReference,
+        remediation: i.remediation,
+      }));
+    }
+    const issueMatches = matchKnownIssues(issueDefs, {
+      vendor: detection.vendor,
+      product: detection.product,
+      version: device.panosVersion,
+      familiesPresent: manifest.familiesPresent,
+      files: parserInput,
+    });
+    if (issueMatches.length > 0 && dbIssues.length > 0) {
+      const byIssueId = new Map(dbIssues.map((i) => [i.issueId, i.id]));
+      const rows = issueMatches
+        .filter((m) => byIssueId.has(m.issueId))
+        .map((m) => ({
+          uploadId,
+          knownIssueId: byIssueId.get(m.issueId) as string,
+          matchType: m.matchType,
+          confidence: m.confidence,
+          evidenceJson: m.evidence as unknown as object,
+          explanation: m.explanation,
+        }));
+      if (rows.length > 0) await prisma.knownIssueMatch.createMany({ data: rows });
+    }
+
+    // 9. Run the rule set for the detected product
     await setStep(uploadId, "analyzing", 84);
     const findings = runRulesForProduct(detection.product, artifacts);
     if (findings.length > 0) {

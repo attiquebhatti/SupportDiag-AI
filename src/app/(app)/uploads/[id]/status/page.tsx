@@ -6,8 +6,9 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 
 const STEPS = [
-  "queued", "downloading", "extracting", "indexing", "detecting", "parsing",
-  "device-detection", "analyzing", "summarizing", "completed",
+  "queued", "downloading", "extracting", "indexing", "detecting", "normalizing",
+  "parsing", "device-detection", "matching-known-issues", "analyzing",
+  "summarizing", "completed",
 ];
 
 interface Status {

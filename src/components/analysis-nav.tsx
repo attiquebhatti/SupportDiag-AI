@@ -9,6 +9,7 @@ export function AnalysisNav({ uploadId }: { uploadId: string }) {
   const tabs = [
     { href: base, label: "Overview" },
     { href: `${base}/findings`, label: "Diagnostic Findings" },
+    { href: `${base}/known-issues`, label: "Known Issues" },
     { href: `${base}/evidence`, label: "Evidence" },
     { href: `${base}/files`, label: "Evidence Explorer" },
     { href: `${base}/timeline`, label: "Timeline" },

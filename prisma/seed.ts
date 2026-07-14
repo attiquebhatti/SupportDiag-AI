@@ -3,6 +3,7 @@ import { PrismaClient } from "@prisma/client";
 import bcrypt from "bcryptjs";
 import { PARSER_CATALOG } from "../src/lib/parsers/registry";
 import { RULE_CATALOG_UNIQUE } from "../src/lib/rules/registry";
+import { KNOWN_ISSUE_CATALOG } from "../src/lib/known-issues";
 
 const prisma = new PrismaClient();
 
@@ -67,7 +68,42 @@ async function main() {
     });
   }
 
-  console.log(`Seed complete. Parsers: ${PARSER_CATALOG.length}, Rules: ${RULE_CATALOG_UNIQUE.length}`);
+  // Known-issue signature catalog (placeholder families; see src/lib/known-issues)
+  for (const ki of KNOWN_ISSUE_CATALOG) {
+    await prisma.knownIssue.upsert({
+      where: { issueId: ki.issueId },
+      update: {
+        title: ki.title,
+        minAffectedVersion: ki.minAffectedVersion,
+        maxAffectedVersion: ki.maxAffectedVersion,
+        fixedVersion: ki.fixedVersion,
+        symptomPatternsJson: ki.symptomPatterns,
+        requiredEvidenceJson: ki.requiredEvidence,
+        exclusionCriteriaJson: ki.exclusionPatterns,
+        sourceReference: ki.sourceReference,
+        remediation: ki.remediation,
+      },
+      create: {
+        issueId: ki.issueId,
+        vendor: ki.vendor,
+        product: ki.product,
+        title: ki.title,
+        minAffectedVersion: ki.minAffectedVersion,
+        maxAffectedVersion: ki.maxAffectedVersion,
+        fixedVersion: ki.fixedVersion,
+        symptomPatternsJson: ki.symptomPatterns,
+        requiredEvidenceJson: ki.requiredEvidence,
+        exclusionCriteriaJson: ki.exclusionPatterns,
+        sourceReference: ki.sourceReference,
+        remediation: ki.remediation,
+        enabled: true,
+      },
+    });
+  }
+
+  console.log(
+    `Seed complete. Parsers: ${PARSER_CATALOG.length}, Rules: ${RULE_CATALOG_UNIQUE.length}, Known issues: ${KNOWN_ISSUE_CATALOG.length}`
+  );
 }
 
 main()

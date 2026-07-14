@@ -113,6 +113,35 @@ score → AI executive summary → complete`.
 
 Cron endpoints require `Authorization: Bearer $CRON_SECRET` or `?key=$CRON_SECRET`.
 
+## PAN-OS TSF diagnostics (Phase 1A)
+
+Deep Tech Support File analysis for PAN-OS / Panorama, built on an
+evidence-first pipeline (raw file → normalized artifact → parsed data → rules →
+known-issue match → findings → report):
+
+- **Artifact normalization registry** (`src/lib/panos/artifacts.ts`) maps physical
+  TSF paths to stable logical families (SYSTEM_LOG, HA_AGENT_LOG, DP_MONITOR_LOG,
+  GLOBALPROTECT_SERVICE_LOG, CORES, SDB, …) across platform/slot variations, builds
+  a per-case **manifest**, and flags **missing expected evidence**.
+- **CLI snapshot parser** (`src/lib/panos/cli-snapshot.ts`) fuzzily splits a
+  monolithic techsupport dump into per-command virtual files, so every existing
+  parser becomes TSF-aware without depending on exact header formatting.
+- **Version-awareness layer** (`src/lib/panos/version.ts`) turns the detected
+  PAN-OS version into an evidence model: GlobalProtect log selection
+  (appweb3-sslvpn.log ≤10.1 vs gpsvc.log ≥10.2), process availability
+  (distributord 10.0+, reportd 10.1+), timestamp precision notes, and decryption
+  applicability (11.1+). Version-specific conclusions always carry the version.
+- **Version-aware known-issue engine** (`src/lib/known-issues`) matches symptom
+  signatures against evidence with conservative match types (Exact Match / Strong
+  Candidate / Possible Match), respecting affected/fixed version ranges, required
+  evidence families, and exclusions. Seeded with documented issue *families*
+  (placeholders to verify against vendor docs) — never asserts a specific defect.
+- Surfaced in the case workspace: **Known Issues** tab (matches + clickable
+  evidence + remediation) and an **Analysis Completeness** widget on the overview.
+
+Unit tests: `npm test` (`test/panos-phase1a.test.ts`). The multi-vendor
+architecture and generic-log path are unchanged.
+
 ## Roles & access control (RBAC)
 
 | Capability | Viewer | Engineer | Admin |

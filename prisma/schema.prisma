@@ -105,14 +105,15 @@ model Upload {
   createdAt DateTime  @default(now())
   deletedAt DateTime?
 
-  job            AnalysisJob?
-  device         Device?
-  assets         Asset[]
-  extractedFiles ExtractedFile[]
-  artifacts      ParsedArtifact[]
-  findings       Finding[]
-  conversations  AIConversation[]
-  reports        Report[]
+  job              AnalysisJob?
+  device           Device?
+  assets           Asset[]
+  extractedFiles   ExtractedFile[]
+  artifacts        ParsedArtifact[]
+  findings         Finding[]
+  conversations    AIConversation[]
+  reports          Report[]
+  knownIssueMatches KnownIssueMatch[]
 
   @@index([userId])
   @@index([status])
@@ -294,4 +295,43 @@ model SystemState {
   key       String   @id
   value     String   @db.Text
   updatedAt DateTime @updatedAt
+}
+
+// Version-aware known-issue signature (publicly documented issue families).
+model KnownIssue {
+  id                    String            @id @default(cuid())
+  vendor                String
+  product               String
+  issueId               String            @unique
+  title                 String
+  minAffectedVersion    String?
+  maxAffectedVersion    String?
+  fixedVersion          String?
+  symptomPatternsJson   Json
+  requiredEvidenceJson  Json?
+  exclusionCriteriaJson Json?
+  sourceReference       String            @db.Text
+  remediation           String            @db.Text
+  enabled               Boolean           @default(true)
+  matches               KnownIssueMatch[]
+  createdAt             DateTime          @default(now())
+  updatedAt             DateTime          @updatedAt
+
+  @@index([vendor, product])
+}
+
+// A known-issue candidate detected in a specific case (upload).
+model KnownIssueMatch {
+  id           String     @id @default(cuid())
+  uploadId     String
+  upload       Upload     @relation(fields: [uploadId], references: [id], onDelete: Cascade)
+  knownIssueId String
+  knownIssue   KnownIssue @relation(fields: [knownIssueId], references: [id], onDelete: Cascade)
+  matchType    String // Exact Match | Strong Candidate | Possible Match
+  confidence   Int
+  evidenceJson Json
+  explanation  String     @db.Text
+  createdAt    DateTime   @default(now())
+
+  @@index([uploadId])
 }

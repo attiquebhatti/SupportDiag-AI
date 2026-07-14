@@ -32,9 +32,18 @@ export default async function OverviewPage({ params }: { params: Promise<{ id: s
     redirect(`/uploads/${id}/status`);
   }
 
-  const aiArtifact = await prisma.parsedArtifact.findFirst({
-    where: { uploadId: id, artifactType: "ai-summary" },
-  });
+  const [aiArtifact, manifestArtifact, evidenceArtifact, knownIssueCount] = await Promise.all([
+    prisma.parsedArtifact.findFirst({ where: { uploadId: id, artifactType: "ai-summary" } }),
+    prisma.parsedArtifact.findFirst({ where: { uploadId: id, artifactType: "tsf-manifest" } }),
+    prisma.parsedArtifact.findFirst({ where: { uploadId: id, artifactType: "panos-evidence-model" } }),
+    prisma.knownIssueMatch.count({ where: { uploadId: id } }),
+  ]);
+  const manifest = manifestArtifact?.dataJson as
+    | { familiesPresent?: string[]; missingEvidence?: string[]; cliCommandsFound?: string[] }
+    | null;
+  const evidenceModel = evidenceArtifact?.dataJson as
+    | { detectedVersion?: string | null; versionKnown?: boolean; gpServiceLog?: string; parserDecisions?: string[] }
+    | null;
 
   const device = upload.device;
   const sevs = upload.findings.map((f) => ({
@@ -113,6 +122,75 @@ export default async function OverviewPage({ params }: { params: Promise<{ id: s
           </div>
         </CardContent>
       </Card>
+
+      {/* Analysis completeness + version evidence model */}
+      {(manifest || evidenceModel) && (
+        <Card className="lg:col-span-3">
+          <CardHeader><CardTitle>Analysis Completeness</CardTitle></CardHeader>
+          <CardContent className="grid gap-6 lg:grid-cols-2">
+            <div>
+              <div className="mb-2 text-xs font-medium text-muted-foreground">Evidence families present</div>
+              <div className="grid grid-cols-2 gap-1.5 text-xs sm:grid-cols-3">
+                {[
+                  { id: "CLI_TECHSUPPORT", label: "CLI snapshot" },
+                  { id: "SYSTEM_LOG", label: "System logs" },
+                  { id: "DP_MONITOR_LOG", label: "DP resource logs" },
+                  { id: "HA_AGENT_LOG", label: "HA logs" },
+                  { id: "IKE_MANAGER_LOG", label: "VPN logs" },
+                  { id: "GLOBALPROTECT_SERVICE_LOG", label: "GlobalProtect logs" },
+                  { id: "CORES", label: "Crash/core refs" },
+                  { id: "RUNNING_CONFIG", label: "Running config" },
+                  { id: "SDB", label: "Interface state" },
+                ].map((f) => {
+                  const present = manifest?.familiesPresent?.includes(f.id);
+                  return (
+                    <div key={f.id} className="flex items-center gap-1.5">
+                      <span className={`inline-block h-1.5 w-1.5 rounded-full ${present ? "bg-emerald-500" : "bg-slate-600"}`} />
+                      <span className={present ? "" : "text-muted-foreground/60"}>{f.label}</span>
+                    </div>
+                  );
+                })}
+              </div>
+              {manifest?.cliCommandsFound && manifest.cliCommandsFound.length > 0 && (
+                <p className="mt-3 text-[11px] text-muted-foreground">{manifest.cliCommandsFound.length} CLI command output(s) indexed from the techsupport snapshot.</p>
+              )}
+              {manifest?.missingEvidence && manifest.missingEvidence.length > 0 && (
+                <div className="mt-3">
+                  <div className="mb-1 text-xs font-medium text-amber-500">Missing evidence</div>
+                  <ul className="space-y-0.5 text-[11px] text-muted-foreground">
+                    {manifest.missingEvidence.slice(0, 6).map((msg, i) => <li key={i}>• {msg}</li>)}
+                  </ul>
+                </div>
+              )}
+            </div>
+            <div>
+              <div className="mb-2 text-xs font-medium text-muted-foreground">Version-aware evidence model</div>
+              {evidenceModel?.versionKnown ? (
+                <div className="space-y-1.5 text-xs">
+                  <Row label="Detected PAN-OS" value={evidenceModel.detectedVersion} />
+                  <Row label="GP service log" value={evidenceModel.gpServiceLog} />
+                  <Row label="Known-issue candidates" value={String(knownIssueCount)} />
+                  {evidenceModel.parserDecisions && (
+                    <ul className="mt-2 space-y-0.5 text-[11px] text-muted-foreground">
+                      {evidenceModel.parserDecisions.slice(0, 3).map((d, i) => <li key={i}>• {d}</li>)}
+                    </ul>
+                  )}
+                </div>
+              ) : (
+                <p className="text-xs text-muted-foreground">
+                  PAN-OS version could not be confirmed — version-specific conclusions are held to lower confidence.
+                  {knownIssueCount > 0 ? ` ${knownIssueCount} known-issue candidate(s) detected.` : ""}
+                </p>
+              )}
+              {knownIssueCount > 0 && (
+                <Link href={`/uploads/${id}/known-issues`} className="mt-3 inline-block text-xs text-primary hover:underline">
+                  View {knownIssueCount} known-issue candidate(s) →
+                </Link>
+              )}
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       {/* AI summary */}
       <Card className="lg:col-span-3">
