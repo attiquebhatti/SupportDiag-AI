@@ -34,6 +34,30 @@ export default async function TimelinePage({ params }: { params: Promise<{ id: s
     if (a.artifactType.startsWith("cortex-") || a.artifactType.startsWith("xsiam-")) {
       for (const s of ((data.samples as string[]) ?? [])) events.push({ time: null, category: a.artifactType.startsWith("xsiam") ? "XSIAM Ingestion" : "Cortex Agent", severity: "Medium", source: a.sourceFilePath ?? a.artifactType, text: redactText(s).slice(0, 260) });
     }
+
+    // Structured PAN-OS deep-analyzer events (normalized timestamps + precision).
+    if (a.artifactType === "diag-events") {
+      const evs = (data.events as Array<{
+        category: string;
+        severity: TimelineEvent["severity"];
+        rawTimestamp: string | null;
+        normalizedTimestamp: string | null;
+        precision: string;
+        title: string;
+        source: { filePath: string; line?: number; snippet: string };
+      }>) ?? [];
+      for (const e of evs) {
+        const loc = e.source?.line ? `${e.source.filePath}:${e.source.line}` : e.source?.filePath ?? "evidence";
+        events.push({
+          time: e.normalizedTimestamp ?? e.rawTimestamp ?? null,
+          category: e.category,
+          severity: e.severity,
+          source: loc,
+          text: redactText(`${e.title} — ${e.source?.snippet ?? ""}`).slice(0, 260),
+          lowPrecision: e.precision === "none" || e.precision === "minute",
+        });
+      }
+    }
   }
 
   // Sort: timestamped events first (desc), then untimed.

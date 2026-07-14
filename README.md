@@ -139,7 +139,16 @@ known-issue match → findings → report):
 - Surfaced in the case workspace: **Known Issues** tab (matches + clickable
   evidence + remediation) and an **Analysis Completeness** widget on the overview.
 
-Unit tests: `npm test` (`test/panos-phase1a.test.ts`). The multi-vendor
+**Deep analyzers** (`src/lib/panos/analyzers`) run after parsing on PAN-OS cases:
+  Resource Health (OOM, pan_task, packet-diag, disk), Crash/Core (identify +
+  correlate, no binary decode), Commit-Failure (ID population / DB corruption),
+  HA (split-brain, peer-down, out-of-sync + transition events), and Interface
+  (CRC/FCS counters, link flaps) — each emitting an enriched finding
+  (plane / probable cause / alternatives / correlation) plus structured timeline
+  events. An **event-correlation engine** links events by shared process and
+  time window (e.g. OOM → crash → reboot cascades) and annotates findings.
+
+Unit tests: `npm test` (16 checks across `test/panos-*.test.ts`). The multi-vendor
 architecture and generic-log path are unchanged.
 
 ## Roles & access control (RBAC)

@@ -13,6 +13,7 @@ import { buildManifest, classifyPath } from "./panos/artifacts";
 import { looksLikeCliSnapshot, parseCliSnapshot, sectionsAsVirtualFiles } from "./panos/cli-snapshot";
 import { buildEvidenceModel } from "./panos/version";
 import { matchKnownIssues, KNOWN_ISSUE_CATALOG, type KnownIssueDef } from "./known-issues";
+import { runDeepAnalysis } from "./panos/analyzers";
 import type { Severity as PrismaSeverity } from "@prisma/client";
 import type { Severity } from "./rules/types";
 
@@ -254,7 +255,7 @@ export async function processUpload(uploadId: string): Promise<void> {
       if (rows.length > 0) await prisma.knownIssueMatch.createMany({ data: rows });
     }
 
-    // 9. Run the rule set for the detected product
+    // 9. Run the baseline rule set for the detected product
     await setStep(uploadId, "analyzing", 84);
     const findings = runRulesForProduct(detection.product, artifacts);
     if (findings.length > 0) {
@@ -277,8 +278,50 @@ export async function processUpload(uploadId: string): Promise<void> {
       });
     }
 
-    // 8. Health score
-    const healthScore = computeHealthScore(findings);
+    // 9b. PAN-OS deep analyzers (Resource/Crash/Commit/HA/Interface) + correlation
+    const allSeverities = [...findings.map((f) => ({ severity: f.severity }))];
+    if (detection.vendor === "palo_alto") {
+      const deep = runDeepAnalysis(artifacts, parserInput, device.panosVersion, manifest.familiesPresent);
+      if (deep.findings.length > 0) {
+        await prisma.finding.createMany({
+          data: deep.findings.map((f) => ({
+            uploadId,
+            assetId: asset.id,
+            vendor: detection.vendor ?? undefined,
+            product: detection.product ?? undefined,
+            ruleId: f.ruleId,
+            severity: SEVERITY_MAP[f.severity],
+            category: f.category,
+            title: f.title,
+            description: f.summary,
+            impact: f.technicalImpact,
+            recommendation: f.recommendation,
+            confidence: f.confidence,
+            evidenceJson: f.evidence as unknown as object,
+            detailsJson: f.details as unknown as object,
+          })),
+        });
+        allSeverities.push(...deep.findings.map((f) => ({ severity: f.severity })));
+      }
+      // Structured diagnostic events + correlation groups for the timeline.
+      await prisma.parsedArtifact.create({
+        data: {
+          uploadId,
+          vendor: detection.vendor,
+          product: detection.product,
+          parserName: "deep-analyzer",
+          artifactType: "diag-events",
+          dataJson: {
+            events: deep.events.slice(0, 500),
+            correlationGroups: deep.correlationGroups,
+          } as unknown as object,
+          sourceFilePath: null,
+        },
+      });
+    }
+
+    // 10. Health score (baseline + deep findings)
+    const healthScore = computeHealthScore(allSeverities);
 
     // 9. AI executive summary (optional; degrades gracefully if disabled)
     await setStep(uploadId, "summarizing", 93);

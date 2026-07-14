@@ -10,6 +10,7 @@ export interface TimelineEvent {
   severity: "Critical" | "High" | "Medium" | "Low" | "Info";
   source: string;
   text: string;
+  lowPrecision?: boolean;
 }
 
 const SEV_DOT: Record<string, string> = {
@@ -63,6 +64,11 @@ export function CaseTimeline({ events }: { events: TimelineEvent[] }) {
             <div className="rounded-md border p-2.5">
               <div className="flex items-center gap-2 text-[11px] text-muted-foreground">
                 <span className="font-mono">{e.time ?? "no timestamp"}</span>
+                {e.lowPrecision && (
+                  <span title="Low-precision or placeholder timestamp" className="rounded bg-amber-500/15 px-1 text-[10px] text-amber-500">
+                    low precision
+                  </span>
+                )}
                 <span>· {e.category}</span>
                 <span className="ml-auto font-mono">{e.source}</span>
               </div>

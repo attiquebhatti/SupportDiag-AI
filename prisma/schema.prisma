@@ -223,6 +223,7 @@ model Finding {
   recommendation String @db.Text
   confidence     Int // 0-100
   evidenceJson   Json
+  detailsJson    Json? // enriched analyzer detail: plane, probableCause, alternatives, correlation
   status         FindingStatus @default(OPEN)
   analystNote    String? @db.Text
   createdAt      DateTime      @default(now())

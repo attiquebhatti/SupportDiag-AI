@@ -33,6 +33,14 @@ export default async function FindingDetailPage({
   const user = await getCurrentUser();
   const writer = user ? canWrite(user.role) : false;
   const evidence = (Array.isArray(finding.evidenceJson) ? finding.evidenceJson : []) as unknown as Evidence[];
+  const details = (finding.detailsJson ?? null) as {
+    plane?: string;
+    affectedProcess?: string;
+    probableCause?: string;
+    alternativeCauses?: string[];
+    knownIssuePossibility?: string;
+    correlation?: string[];
+  } | null;
 
   return (
     <div className="space-y-4">
@@ -60,6 +68,44 @@ export default async function FindingDetailPage({
             <CardHeader><CardTitle className="text-base">Description</CardTitle></CardHeader>
             <CardContent className="text-sm">{redactText(finding.description, {})}</CardContent>
           </Card>
+
+          {details && (details.probableCause || details.correlation?.length || details.alternativeCauses?.length) && (
+            <Card>
+              <CardHeader><CardTitle className="text-base">Root-Cause Analysis</CardTitle></CardHeader>
+              <CardContent className="space-y-3 text-sm">
+                {(details.plane || details.affectedProcess) && (
+                  <div className="flex flex-wrap gap-2 text-xs">
+                    {details.plane && <span className="rounded-full border bg-muted px-2 py-0.5">Plane: {details.plane.toUpperCase()}</span>}
+                    {details.affectedProcess && <span className="rounded-full border bg-muted px-2 py-0.5">Process: {details.affectedProcess}</span>}
+                  </div>
+                )}
+                {details.probableCause && (
+                  <div><span className="font-medium">Probable cause:</span> {redactText(details.probableCause, {})}</div>
+                )}
+                {details.alternativeCauses && details.alternativeCauses.length > 0 && (
+                  <div>
+                    <span className="font-medium">Alternative causes:</span>
+                    <ul className="mt-1 list-disc pl-5 text-muted-foreground">
+                      {details.alternativeCauses.map((c, i) => <li key={i}>{c}</li>)}
+                    </ul>
+                  </div>
+                )}
+                {details.correlation && details.correlation.length > 0 && (
+                  <div className="rounded-md border border-primary/20 bg-primary/5 p-2">
+                    <span className="text-xs font-medium text-primary">Correlated evidence</span>
+                    <ul className="mt-1 space-y-0.5 text-xs text-muted-foreground">
+                      {details.correlation.map((c, i) => <li key={i}>• {c}</li>)}
+                    </ul>
+                  </div>
+                )}
+                {details.knownIssuePossibility && (
+                  <p className="text-xs text-muted-foreground">
+                    <Link href={`/uploads/${id}/known-issues`} className="text-primary hover:underline">{details.knownIssuePossibility}</Link>
+                  </p>
+                )}
+              </CardContent>
+            </Card>
+          )}
           <Card>
             <CardHeader><CardTitle className="text-base">Impact</CardTitle></CardHeader>
             <CardContent className="text-sm">{redactText(finding.impact, {})}</CardContent>
