@@ -28,7 +28,7 @@ In **hPanel → Advanced → Node.js** (Setup Node.js App):
 Any of:
 
 - **GitHub deployment** (recommended): hPanel → Git → connect
-  `https://github.com/attiquebhatti/FirewallLens-AI` (branch `main`), enable auto-deploy
+  `https://github.com/attiquebhatti/SupportDiagAI-v2` (branch `main`), enable auto-deploy
 - **File Manager / FTP**: upload the project (excluding `node_modules`, `.next`, `.env`)
 - **SSH**: `git clone` into the app root if SSH is available
 
