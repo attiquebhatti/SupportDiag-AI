@@ -13,6 +13,7 @@ export async function GET() {
     status: "ok" | "degraded";
     database: "connected" | "error";
     dbErrorCode?: string;
+    dbErrorHint?: string;
     userTable?: "present" | "missing";
     time: string;
   } = { status: "ok", database: "connected", time: new Date().toISOString() };
@@ -23,6 +24,7 @@ export async function GET() {
     health.status = "degraded";
     health.database = "error";
     health.dbErrorCode = extractCode(err);
+    health.dbErrorHint = sanitizeMessage(err);
     return NextResponse.json(health, { status: 503 });
   }
 
@@ -45,4 +47,20 @@ function extractCode(err: unknown): string {
     return e.code ?? e.errorCode ?? e.name ?? "unknown";
   }
   return "unknown";
+}
+
+// First line of the error message with anything secret-shaped removed:
+// credentials inside connection URLs and quoted passwords never leave the box.
+function sanitizeMessage(err: unknown): string {
+  const raw = err instanceof Error ? err.message : String(err);
+  const meaningful = raw
+    .split("\n")
+    .map((l) => l.trim())
+    .filter((l) => l && !l.startsWith("Invalid `prisma."))
+    .slice(0, 2)
+    .join(" ")
+    .slice(0, 300);
+  return meaningful
+    .replace(/mysql:\/\/[^@\s]*@/gi, "mysql://***:***@")
+    .replace(/password[^,;\s]*/gi, "password=***");
 }
