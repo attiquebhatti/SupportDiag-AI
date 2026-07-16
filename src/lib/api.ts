@@ -31,8 +31,9 @@ export async function requireWriter(): Promise<
 }
 
 /**
- * Load an upload the current user is allowed to see (same org, or owner, or
- * admin), or return a 404/403 response. Excludes soft-deleted uploads.
+ * Load an upload the current user owns, or return a 404 response. Uploads are
+ * isolated per user, so a non-owner is treated as if the upload does not exist.
+ * Excludes soft-deleted uploads.
  */
 export async function requireUploadAccess(uploadId: string) {
   const result = await requireUser();
@@ -42,11 +43,10 @@ export async function requireUploadAccess(uploadId: string) {
     return { response: apiError("Upload not found", 404) };
   }
   const { user } = result;
-  const sameOwner = upload.userId === user.id;
-  const sameOrg =
-    !!user.organizationId && upload.organizationId === user.organizationId;
-  if (user.role !== "ADMIN" && !sameOwner && !sameOrg) {
-    return { response: apiError("Forbidden", 403) };
+  // Per-user isolation: only the owner may access an upload. Return 404 (not
+  // 403) so the existence of another user's case is never revealed.
+  if (upload.userId !== user.id) {
+    return { response: apiError("Upload not found", 404) };
   }
   return { user, upload };
 }

@@ -18,12 +18,8 @@ export default async function UploadLayout({
   const upload = await prisma.upload.findUnique({ where: { id } });
   if (!upload || upload.deletedAt) notFound();
 
-  // Access control (owner / same org / admin).
-  const allowed =
-    user?.role === "ADMIN" ||
-    upload.userId === user?.id ||
-    (!!user?.organizationId && upload.organizationId === user.organizationId);
-  if (!allowed) notFound();
+  // Access control: per-user isolation — only the owner may view a case.
+  if (upload.userId !== user?.id) notFound();
 
   return (
     <div className="space-y-4">
@@ -37,9 +33,7 @@ export default async function UploadLayout({
             <p className="text-xs text-muted-foreground">Case {upload.id}</p>
           </div>
         </div>
-        {(user?.role === "ADMIN" || user?.role === "ENGINEER" || upload.userId === user?.id) && (
-          <DeleteCaseButton uploadId={upload.id} />
-        )}
+        {upload.userId === user?.id && <DeleteCaseButton uploadId={upload.id} />}
       </div>
       <AnalysisNav uploadId={upload.id} />
       <div className="pt-2">{children}</div>

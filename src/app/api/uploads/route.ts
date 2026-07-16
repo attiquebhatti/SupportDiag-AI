@@ -1,6 +1,7 @@
 import { createHash } from "crypto";
 import { prisma } from "@/lib/prisma";
 import { requireUser, requireWriter, apiError, json } from "@/lib/api";
+import { uploadScope } from "@/lib/scope";
 import { config } from "@/lib/config";
 import { getStorage, buildArchiveKey } from "@/lib/storage";
 import { detectArchiveType, isSingleDiagnosticFile } from "@/lib/extraction";
@@ -8,20 +9,14 @@ import { detectArchiveType, isSingleDiagnosticFile } from "@/lib/extraction";
 export const runtime = "nodejs";
 export const maxDuration = 60;
 
-// GET /api/uploads — list current user's (org) uploads
+// GET /api/uploads — list the current user's own uploads (per-user isolation)
 export async function GET() {
   const auth = await requireUser();
   if ("response" in auth) return auth.response;
   const { user } = auth;
 
   const uploads = await prisma.upload.findMany({
-    where: {
-      deletedAt: null,
-      OR: [
-        { userId: user.id },
-        user.organizationId ? { organizationId: user.organizationId } : { id: "__none__" },
-      ],
-    },
+    where: uploadScope(user),
     orderBy: { createdAt: "desc" },
     include: { job: true, device: true, _count: { select: { findings: true } } },
     take: 100,
