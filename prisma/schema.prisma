@@ -63,6 +63,7 @@ model User {
   organization   Organization?   @relation(fields: [organizationId], references: [id])
   uploads        Upload[]
   conversations  AIConversation[]
+  migrationProjects MigrationProject[]
   createdAt      DateTime        @default(now())
   updatedAt      DateTime        @updatedAt
 
@@ -76,6 +77,7 @@ model Organization {
   retentionDays Int      @default(7)
   users         User[]
   uploads       Upload[]
+  migrationProjects MigrationProject[]
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
 }
@@ -335,4 +337,412 @@ model KnownIssueMatch {
   createdAt    DateTime   @default(now())
 
   @@index([uploadId])
+}
+
+// ---------------------------------------------------------------------------
+// Migration Assurance
+//
+// Post-migration configuration validation. A MigrationProject holds up to three
+// ConfigurationSnapshots (source / migrated / deployed target). Each snapshot is
+// parsed into vendor-neutral NormalizedObjects, which the comparison engine then
+// compares three ways to produce PolicyComparisons and ValidationFindings.
+// ---------------------------------------------------------------------------
+
+enum MigrationStatus {
+  DRAFT
+  COLLECTING
+  PARSING
+  VALIDATING
+  COMPLETED
+  FAILED
+}
+
+enum TargetManagementType {
+  STANDALONE_PANOS
+  PANORAMA
+  SCM
+  PRISMA_ACCESS
+}
+
+/// Which configuration in the migration lifecycle a snapshot represents.
+enum SnapshotType {
+  SOURCE
+  MIGRATED
+  TARGET_CANDIDATE
+  TARGET_RUNNING
+  TARGET_EFFECTIVE
+}
+
+/// How a snapshot was obtained. Upload, internal generation, and API retrieval
+/// are interchangeable producers of the same normalized model.
+enum SnapshotOrigin {
+  UPLOAD
+  GENERATED
+  API_PANOS
+  API_PANORAMA
+  API_SCM
+  SUPPORTDIAG_CASE
+}
+
+enum SnapshotParseStatus {
+  PENDING
+  PARSING
+  PARSED
+  FAILED
+}
+
+/// Result of comparing one entity across two configurations.
+enum ComparisonStatus {
+  EXACT_MATCH
+  EQUIVALENT_MATCH
+  TRANSFORMED_MATCH
+  PARTIAL_MATCH
+  MISSING_IN_MIGRATED
+  MISSING_IN_TARGET
+  EXTRA_IN_TARGET
+  CONFLICT
+  UNSUPPORTED
+  REQUIRES_MANUAL_REVIEW
+  NOT_EVALUATED
+}
+
+enum RiskClassification {
+  NO_MATERIAL_CHANGE
+  LOW_RISK_DIFFERENCE
+  FUNCTIONAL_DIFFERENCE
+  SECURITY_WEAKENING
+  CONNECTIVITY_RISK
+  CRITICAL_MIGRATION_FAILURE
+}
+
+/// Lineage relationship between source and migrated entities. Migrations are
+/// rarely one-to-one; a source rule may split or consolidate.
+enum MappingType {
+  ONE_TO_ONE
+  ONE_TO_MANY
+  MANY_TO_ONE
+  SPLIT_RULE
+  CONSOLIDATED_RULE
+  TRANSFORMED_OBJECT
+  UNSUPPORTED_TRANSLATION
+  MANUAL_MAPPING
+  UNMAPPED
+}
+
+/// Parity failures are kept distinct from optimization advice (spec §22): a
+/// faithfully migrated rule must never be marked failed for not yet following
+/// PAN-OS best practice.
+enum FindingCategory {
+  MIGRATION_FAILURE
+  MIGRATION_DIFFERENCE
+  DEPLOYMENT_FAILURE
+  SECURITY_REGRESSION
+  CONNECTIVITY_RISK
+  OPTIMIZATION_RECOMMENDATION
+}
+
+enum ValidationFindingStatus {
+  OPEN
+  ACCEPTED
+  REMEDIATED
+  DEFERRED
+  FALSE_POSITIVE
+}
+
+enum ExceptionType {
+  ACCEPTED_TRANSFORMATION
+  INTENTIONAL_CHANGE
+  APPROVED_OPTIMIZATION
+  KNOWN_LIMITATION
+  FALSE_POSITIVE
+  REQUIRES_REMEDIATION
+  DEFERRED
+  UNSUPPORTED_SOURCE_FEATURE
+}
+
+enum ApprovalStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+enum TestStatus {
+  NOT_RUN
+  PASSED
+  FAILED
+  INCONCLUSIVE
+  UNSUPPORTED
+}
+
+enum DeploymentCheckStatus {
+  NOT_VALIDATED
+  VALIDATION_PASSED
+  VALIDATION_PASSED_WITH_WARNINGS
+  VALIDATION_FAILED
+  COMMIT_PENDING
+  COMMIT_SUCCESSFUL
+  COMMIT_FAILED
+  PUSH_PENDING
+  PUSH_SUCCESSFUL
+  PUSH_PARTIALLY_SUCCESSFUL
+  PUSH_FAILED
+  UNABLE_TO_VERIFY
+}
+
+model MigrationProject {
+  id                   String               @id @default(cuid())
+  userId               String
+  user                 User                 @relation(fields: [userId], references: [id], onDelete: Cascade)
+  organizationId       String?
+  organization         Organization?        @relation(fields: [organizationId], references: [id])
+  name                 String
+  description          String?              @db.Text
+  sourceVendor         String? // checkpoint | fortigate | cisco-asa | ...
+  sourcePlatform       String?
+  sourceVersion        String?
+  targetPlatform       String               @default("panos")
+  targetManagementType TargetManagementType @default(STANDALONE_PANOS)
+  targetVersion        String?
+  /// Selected target scope (vsys, device group, template stack, folder...).
+  targetScopeJson      Json?
+  status               MigrationStatus      @default(DRAFT)
+  /// Cached §23 assurance scores and verification-completeness indicator.
+  scoresJson           Json?
+  completenessJson     Json?
+  lastValidatedAt      DateTime?
+  createdAt            DateTime             @default(now())
+  updatedAt            DateTime             @updatedAt
+  deletedAt            DateTime?
+
+  snapshots   ConfigurationSnapshot[]
+  mappings    MigrationMapping[]
+  comparisons PolicyComparison[]
+  findings    ValidationFinding[]
+  tests       ValidationTest[]
+  deployments DeploymentValidation[]
+  exceptions  MigrationException[]
+  reports     MigrationReport[]
+
+  @@index([userId])
+  @@index([status])
+  @@index([createdAt])
+}
+
+model ConfigurationSnapshot {
+  id                 String              @id @default(cuid())
+  migrationProjectId String
+  migrationProject   MigrationProject    @relation(fields: [migrationProjectId], references: [id], onDelete: Cascade)
+  snapshotType       SnapshotType
+  origin             SnapshotOrigin      @default(UPLOAD)
+  /// panos-xml | panorama-xml | set-cli | scm-json | normalized-json
+  format             String
+  originalFilename   String?
+  storagePath        String?
+  fileHash           String?
+  fileSize           Int?
+  version            String?
+  /// Scope the snapshot was collected from (device group, vsys, folder...).
+  scopeJson          Json?
+  parseStatus        SnapshotParseStatus @default(PENDING)
+  parseError         String?             @db.Text
+  /// Entity counts produced by parsing, for dashboard cards.
+  statsJson          Json?
+  collectedAt        DateTime            @default(now())
+  parsedAt           DateTime?
+
+  objects NormalizedObject[]
+
+  @@index([migrationProjectId])
+  @@index([snapshotType])
+}
+
+/// Vendor-neutral representation of a single configuration entity (§4).
+/// Rich/variable attributes live in dataJson; queryable identity is promoted
+/// to columns so comparison can index and join efficiently.
+model NormalizedObject {
+  id             String  @id @default(cuid())
+  snapshotId     String
+  snapshot       ConfigurationSnapshot @relation(fields: [snapshotId], references: [id], onDelete: Cascade)
+  /// address | address-group | service | security-rule | nat-rule | ...
+  objectType     String
+  originalId     String?
+  name           String
+  /// Case/format-normalized name used for cross-config matching.
+  normalizedName String
+  vendor         String?
+  scope          String  @default("shared")
+  parentScope    String?
+  /// Ordinal position within its rulebase; null for non-policy objects.
+  ruleOrder      Int?
+  enabled        Boolean @default(true)
+  dataJson       Json
+  sourceReference String?
+  checksum       String
+  createdAt      DateTime @default(now())
+
+  @@index([snapshotId, objectType])
+  @@index([snapshotId, normalizedName])
+  @@index([checksum])
+}
+
+/// Lineage between a source entity and what it became after migration and
+/// deployment. Preserved even for one-to-many/many-to-one transformations.
+model MigrationMapping {
+  id                  String           @id @default(cuid())
+  migrationProjectId  String
+  migrationProject    MigrationProject @relation(fields: [migrationProjectId], references: [id], onDelete: Cascade)
+  objectType          String
+  sourceObjectId      String?
+  migratedObjectId    String?
+  targetObjectId      String?
+  sourceName          String?
+  migratedName        String?
+  targetName          String?
+  mappingType         MappingType      @default(ONE_TO_ONE)
+  transformationNotes String?          @db.Text
+  confidence          Int              @default(100)
+  status              ComparisonStatus @default(NOT_EVALUATED)
+  createdAt           DateTime         @default(now())
+
+  @@index([migrationProjectId, objectType])
+  @@index([sourceObjectId])
+}
+
+/// Three-way comparison result for a single policy rule (§3).
+model PolicyComparison {
+  id                 String             @id @default(cuid())
+  migrationProjectId String
+  migrationProject   MigrationProject   @relation(fields: [migrationProjectId], references: [id], onDelete: Cascade)
+  /// security | nat | decryption | pbf | qos | authentication | dos | ...
+  policyType         String
+  sourcePolicyId     String?
+  migratedPolicyId   String?
+  targetPolicyId     String?
+  ruleName           String
+  sourceOrder        Int?
+  migratedOrder      Int?
+  targetOrder        Int?
+  /// Source -> Migrated
+  sourceToMigrated   ComparisonStatus   @default(NOT_EVALUATED)
+  /// Migrated -> Deployed
+  migratedToDeployed ComparisonStatus   @default(NOT_EVALUATED)
+  /// Overall end-to-end verdict across both hops.
+  endToEndStatus     ComparisonStatus   @default(NOT_EVALUATED)
+  riskClassification RiskClassification @default(NO_MATERIAL_CHANGE)
+  /// Field-level differences: [{ field, source, migrated, target, verdict }]
+  differencesJson    Json?
+  confidence         Int                @default(100)
+  scope              String?
+  createdAt          DateTime           @default(now())
+
+  @@index([migrationProjectId, policyType])
+  @@index([endToEndStatus])
+  @@index([riskClassification])
+}
+
+model ValidationFinding {
+  id                  String                  @id @default(cuid())
+  migrationProjectId  String
+  migrationProject    MigrationProject        @relation(fields: [migrationProjectId], references: [id], onDelete: Cascade)
+  category            FindingCategory
+  severity            Severity
+  /// Stable machine key, e.g. "security.source-broadened-to-any".
+  findingType         String
+  title               String
+  description         String                  @db.Text
+  entityType          String?
+  entityName          String?
+  sourceEvidenceJson  Json?
+  migratedEvidenceJson Json?
+  targetEvidenceJson  Json?
+  impact              String?                 @db.Text
+  recommendation      String?                 @db.Text
+  /// Ordered remediation steps and generated CLI/API drafts (§27).
+  remediationJson     Json?
+  status              ValidationFindingStatus @default(OPEN)
+  analystNote         String?                 @db.Text
+  createdAt           DateTime                @default(now())
+  updatedAt           DateTime                @updatedAt
+
+  exceptions MigrationException[]
+
+  @@index([migrationProjectId, category])
+  @@index([migrationProjectId, severity])
+  @@index([status])
+}
+
+model ValidationTest {
+  id                 String           @id @default(cuid())
+  migrationProjectId String
+  migrationProject   MigrationProject @relation(fields: [migrationProjectId], references: [id], onDelete: Cascade)
+  name               String
+  /// security-match | nat-match | decryption-match | pbf-match | ...
+  testType           String
+  /// Higher runs first; derived from business criticality (§18).
+  priority           Int              @default(50)
+  inputJson          Json
+  expectedResultJson Json?
+  actualResultJson   Json?
+  status             TestStatus       @default(NOT_RUN)
+  notes              String?          @db.Text
+  executedAt         DateTime?
+  createdAt          DateTime         @default(now())
+
+  @@index([migrationProjectId, testType])
+  @@index([status])
+}
+
+model DeploymentValidation {
+  id                 String                @id @default(cuid())
+  migrationProjectId String
+  migrationProject   MigrationProject      @relation(fields: [migrationProjectId], references: [id], onDelete: Cascade)
+  /// panos | panorama | scm
+  platform           String
+  targetScope        String?
+  /// Device serial / name when validating a Panorama-managed firewall.
+  deviceIdentifier   String?
+  validationStatus   DeploymentCheckStatus @default(NOT_VALIDATED)
+  commitStatus       DeploymentCheckStatus @default(NOT_VALIDATED)
+  pushStatus         DeploymentCheckStatus @default(NOT_VALIDATED)
+  jobId              String?
+  detailsJson        Json?
+  checkedAt          DateTime              @default(now())
+
+  @@index([migrationProjectId])
+}
+
+model MigrationException {
+  id                 String            @id @default(cuid())
+  migrationProjectId String
+  migrationProject   MigrationProject  @relation(fields: [migrationProjectId], references: [id], onDelete: Cascade)
+  findingId          String?
+  finding            ValidationFinding? @relation(fields: [findingId], references: [id], onDelete: SetNull)
+  exceptionType      ExceptionType
+  reason             String            @db.Text
+  approvedBy         String?
+  approvalStatus     ApprovalStatus    @default(PENDING)
+  ticketReference    String?
+  evidenceJson       Json?
+  createdAt          DateTime          @default(now())
+  updatedAt          DateTime          @updatedAt
+
+  @@index([migrationProjectId])
+  @@index([findingId])
+}
+
+model MigrationReport {
+  id                 String           @id @default(cuid())
+  migrationProjectId String
+  migrationProject   MigrationProject @relation(fields: [migrationProjectId], references: [id], onDelete: Cascade)
+  /// executive | parity | security-policy | nat | decryption | deployment |
+  /// behavioral | regression | connectivity | exceptions | remediation | signoff
+  reportType         String
+  format             String           @default("md")
+  storagePath        String?
+  contentHash        String?
+  summaryJson        Json?
+  generatedBy        String?
+  generatedAt        DateTime         @default(now())
+
+  @@index([migrationProjectId, reportType])
 }

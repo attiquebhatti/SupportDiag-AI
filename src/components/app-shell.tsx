@@ -5,7 +5,7 @@ import { useState } from "react";
 import {
   LayoutDashboard, UploadCloud, FolderSearch, AlertTriangle, Bot,
   Boxes, FileText, BookOpen, Settings, LogOut, Menu, Search, Bell,
-  HelpCircle, ChevronDown, Shield, Users, HeartPulse,
+  HelpCircle, ChevronDown, Shield, Users, HeartPulse, GitCompareArrows,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -19,6 +19,7 @@ const NAV = [
   { href: "/cases", label: "Cases", icon: FolderSearch, minRole: "VIEWER" },
   { href: "/findings", label: "Diagnostic Findings", icon: AlertTriangle, minRole: "VIEWER" },
   { href: "/investigator", label: "AI Investigator", icon: Bot, minRole: "VIEWER" },
+  { href: "/migrations", label: "Migration Assurance", icon: GitCompareArrows, minRole: "ENGINEER" },
   { href: "/parsers", label: "Vendor Parsers", icon: Boxes, minRole: "VIEWER" },
   { href: "/reports", label: "Reports", icon: FileText, minRole: "VIEWER" },
   { href: "/knowledge-base", label: "Knowledge Base", icon: BookOpen, minRole: "VIEWER" },
